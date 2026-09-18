@@ -31,3 +31,9 @@ desktop.ini
 _*
 .cprof/
 *.png
+
+# Â¼ÖÆ²úÎï
+*.mp4
+frames/
+*.txt
+

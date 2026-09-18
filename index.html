@@ -3354,6 +3354,7 @@ const fmt = t => !isFinite(t) ? '--:--'
 
 let toastEl = null, toastTimer = null;
 function toast(msg){
+  if (REC) return;
   if (!toastEl){ toastEl = document.createElement('div'); toastEl.className = 'toast'; document.body.appendChild(toastEl); }
   toastEl.textContent = msg;
   toastEl.classList.add('show');
@@ -3823,6 +3824,8 @@ stage.addEventListener('scroll', () => {
    3.5 动效层
    ========================================================= */
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* ?rec=1 录制模式：不提示 toast、不自动加载音频，画面由外部时钟推进（见 __seek） */
+const REC = new URLSearchParams(location.search).has('rec');
 const GLYPHS  = '01<>{}[]()/*+-=%$#@!?;:~^&|\\アカサタナハマヤラワ';
 const GLYPH_SIZE = 13, GLYPH_FONT = GLYPH_SIZE + 'px monospace';
 let bodyHidden = false, scrambleHost = null;
@@ -4117,6 +4120,19 @@ setInterval(() => {
   h.classList.add('glitch');
 }, 9000);
 
+/* 供录制与调试使用：把画面定位到音频时间 t（秒），返回落在哪一句 */
+window.__seek = function(t){
+  if (!TS){ applyBuiltin(null); }
+  if (!TS) return -1;
+  const i = Math.max(0, Math.min(N - 1, lineAt(Math.max(0, t - OFFSET))));
+  if (i !== index) setIndex(i, { scroll: true });
+  return i;
+};
+window.__state = function(){
+  return { line: index + 1, total: N, ready: audioReady, t: audio ? +audio.currentTime.toFixed(2) : -1,
+           playing: playing, heat: HEAT[index], ts: TS ? TS.length : 0 };
+};
+
 /* ---- 启动 ---- */
 /* 把 86 句的情绪曲线画进进度条，一眼看到整首歌的起伏和高潮位置 */
 (function drawHeatCurve(){
@@ -4136,7 +4152,9 @@ startSync();
 if (startLine > 0) setTimeout(() => scrollCardToTop(cards[startLine], true), 120);
 
 const bundledEl = document.getElementById('bundledAudio');
-if (bundledEl && bundledEl.textContent.replace(/\s+/g, '').length > 1000){
+if (REC){
+  applyBuiltin(null);                       // 录制时不放音频，用内置时间轴
+} else if (bundledEl && bundledEl.textContent.replace(/\s+/g, '').length > 1000){
   toast('正在解包内置音频…');
   setTimeout(() => loadBundled(bundledEl), 40);   // 先让首帧渲染出来
 } else if (/^https?:$/.test(location.protocol) || location.protocol === 'file:'){
