@@ -37,12 +37,15 @@
          Consolas,'DejaVu Sans Mono','Courier New',monospace;
   --fs-code:14.2px;
   --fs-body:14.5px;
-  transition:--heat .6s cubic-bezier(.4,0,.2,1);
+  /* 注意：这里曾经给 --heat 加过 .6s 过渡，实现"配色淌过去"。
+     但 step 模式下 0..i 的卡片全部 display:''（约 65 张、2000 多个 SVG 元素），
+     过渡意味着这些元素每帧都要重算样式 —— 36 帧 × 2000 元素，直接卡死。
+     现在改成瞬时切换：仍然只算一次，配色依然随句变化。 */
 }
-/* 整页色调：上下两片随热度浓淡的颜色雾，最高到 0.34 不透明度。
-   独立合成层，过渡期间只改 opacity，不重新光栅化整屏渐变。 */
+/* 整页色调：上下两片随热度浓淡的颜色雾。不再挂 will-change ——
+   那会把整屏固定成一个常驻合成层（约 8MB），收益不抵代价。 */
 #glow{
-  position:fixed;inset:0;z-index:0;pointer-events:none;will-change:opacity;
+  position:fixed;inset:0;z-index:0;pointer-events:none;
   background:
     radial-gradient(125% 85% at 50% -12%, var(--accent) 0%, transparent 58%),
     radial-gradient(125% 85% at 50% 112%, var(--accent) 0%, transparent 58%);
@@ -128,7 +131,9 @@ h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);ve
   background:linear-gradient(158deg,var(--accent) 0%,transparent 68%);
   opacity:calc(.04 + var(--heat) * .10);
 }
-.card.past{opacity:.2;filter:saturate(.45)}
+/* 过去的卡片只降不透明度。原来还加了 filter:saturate(.45) ——
+   每张卡都会被强制单独光栅化成一个合成层，65 张就是约 160MB 显存。 */
+.card.past{opacity:.2}
 .card.active{
   border-color:var(--accent-dim);
   box-shadow:0 0 0 1px var(--accent-faint),
@@ -152,8 +157,9 @@ h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);ve
   text-shadow:0 0 30px rgba(110,231,255,.16);
 }
 .zh{margin:0 0 18px;font-size:var(--fs-body);color:var(--dim);line-height:1.85;letter-spacing:.5px}
-.ch{opacity:0;animation:chIn .3s ease both}
-@keyframes chIn{from{opacity:0;filter:blur(5px)}to{opacity:1;filter:blur(0)}}
+/* 注意：这里曾经有一条全局 .ch{animation:chIn…}（含 filter:blur + fill:both），
+   它会把 blur(0px) 永久留在每个字符上，一个字符一层缓冲，直接拖垮整页。
+   现在字符的显隐只由 .en .ch 的透明度过渡负责。 */
 
 .viz{border:1px dashed rgba(110,231,255,.16);border-radius:12px;background:rgba(6,10,18,.62);padding:6px 8px}
 .viz svg{display:block;width:100%;height:auto}
@@ -306,15 +312,16 @@ pre.code .ch.head{
   position:absolute;inset:0;opacity:0;
   background:radial-gradient(130% 110% at 50% 108%, var(--accent) 0%, transparent 62%);
 }
-/* 恍惚：两层反向旋转的虚线大环 */
+/* 恍惚：两层反向旋转的虚线大环。默认不转 ——
+   原来 animation 是常驻的，等于让两个 2300px 大小的层永远在后台旋转。 */
 .fx-trance{position:absolute;inset:0;opacity:0;overflow:hidden}
 .fx-trance b{
-  position:absolute;left:50%;top:48%;width:120vmax;height:120vmax;margin:-60vmax 0 0 -60vmax;
+  position:absolute;left:50%;top:48%;width:92vmax;height:92vmax;margin:-46vmax 0 0 -46vmax;
   border:2px dashed var(--accent-dim);border-radius:50%;
-  animation:rot 26s linear infinite;
 }
-.fx-trance b:nth-child(2){
-  width:78vmax;height:78vmax;margin:-39vmax 0 0 -39vmax;
+body.trance-on .fx-trance b{animation:rot 26s linear infinite}
+body.trance-on .fx-trance b:nth-child(2){
+  width:64vmax;height:64vmax;margin:-32vmax 0 0 -32vmax;
   animation-duration:15s;animation-direction:reverse;
 }
 @keyframes rot{to{transform:rotate(360deg)}}
@@ -322,7 +329,9 @@ pre.code .ch.head{
 /* ── 演出层：按歌词内容编排的画面 ── */
 .fx-dark{position:absolute;inset:0;opacity:0;background:#000;pointer-events:none}
 .fx-items{position:absolute;inset:0}
-.fx-item{position:absolute;display:block;opacity:0;will-change:transform,opacity}
+/* 池元素不再挂 will-change：32 个常驻合成层的代价大于收益，
+   真正动画时浏览器自己会提升。 */
+.fx-item{position:absolute;display:block;opacity:0}
 .fx-item.sq{background:var(--accent);border-radius:2px;box-shadow:0 0 8px var(--accent-dim)}
 .fx-item.ring{border:2px solid var(--accent);border-radius:50%}
 .fx-item.softring{border:1px solid var(--accent-dim);border-radius:50%}
@@ -365,9 +374,9 @@ pre.code .ch.head{
           mask-image:radial-gradient(closest-side at 50% 48%,#000,transparent 92%);
 }
 
-/* 非当前卡冻结全部 SVG 动画（脉冲 / 旋转 / 流动虚线，全页合计近千个元素），
-   切回当前卡时自动从暂停处继续 */
-.card:not(.active) .viz svg *{animation-play-state:paused}
+/* 非当前卡不再跑 SVG 动画。原来用 animation-play-state:paused，
+   但暂停的动画依然在动画列表里被处理；直接 animation:none 更省。 */
+.card:not(.active) .viz svg *{animation:none}
 /* 标签页切到后台时全站暂停 */
 body.page-hidden *{animation-play-state:paused!important}
 
@@ -377,10 +386,12 @@ body.page-hidden *{animation-play-state:paused!important}
 /* 代码打字机由 JS 驱动（见 typeCode），此处只保留 token 配色 */
 
 /* 歌词：乱码解码 */
-.en .ch{opacity:0}
-.en .ch.live{opacity:1;color:var(--cyan);text-shadow:0 0 14px rgba(110,231,255,.85)}
-.en .ch.done{opacity:1;animation:chIn .26s ease both}
-@keyframes chIn{from{opacity:0;filter:blur(4px)}to{opacity:1;filter:blur(0)}}
+/* 字符落定时只做透明度过渡。原来用的是 chIn 关键帧动画（含 filter:blur），
+   而 fill:both 会把 blur(0px) 永久留在每个字符上 —— 每个字符都会渲染进
+   自己的一层缓冲，几十张卡累计上千层。这是上一轮卡顿的真正来源。 */
+.en .ch{opacity:0;transition:opacity .2s ease}
+.en .ch.live{opacity:1;color:var(--accent);text-shadow:0 0 14px var(--accent-dim)}
+.en .ch.done{opacity:1;transition:opacity .2s ease}
 
 /* 译文：从左往右擦出 */
 .zh{clip-path:inset(0 100% 0 0)}
@@ -3035,12 +3046,19 @@ function applyPersist(i){
   const prev = curPersist;
   curPersist = want;
   const F = fx();
-  const to = (el, o, dur) => el && el.animate([{ opacity: o }], { duration: dur || 460, fill: 'both' });
+  const to = (el, o, dur) => {
+    if (!el) return;
+    const cur = parseFloat(el.style.opacity || '0');
+    if (Math.abs(cur - o) < 0.01 && el._o === o) return;   // 目标没变就别新建动画
+    el._o = o;
+    el.animate([{ opacity: o }], { duration: dur || 460, fill: 'both' });
+  };
 
   cageShow(want === 'cage');
   to(F.veil,  want === 'isolate' ? 1 : 0, 560);
   to(F.tint,  want === 'climax' ? .55 : want === 'love' ? .34 : 0, 560);
   to(F.trance, want === 'trance' ? .9 : 0, 700);
+  document.body.classList.toggle('trance-on', want === 'trance');
   if (want !== 'dim' && prev === 'dim') to(F.dark, 0, 420);
   if (want === 'isolate') shakeCard(2);
 }
@@ -3972,13 +3990,13 @@ function animateViz(card){
     return;
   }
   // ---- 读阶段 ----
+  // 判断"是描边还是填充"只看 class / 属性，不用 getComputedStyle ——
+  // 后者对每个图形都强制解析一次样式，棋盘那种 64 格的图会明显掉帧。
   const plan = shapes.map(el => {
-    let stroked = false, len = 0;
-    try {
-      const cs = getComputedStyle(el);
-      stroked = cs.stroke !== 'none' && (parseFloat(cs.strokeWidth) || 0) > 0;
-      if (stroked) len = el.getTotalLength();
-    } catch (e) { stroked = false; }
+    const cls = el.getAttribute('class') || '';
+    const stroked = /(^|\s)(s-|f-cell)/.test(cls) || el.hasAttribute('stroke');
+    let len = 0;
+    if (stroked){ try { len = el.getTotalLength(); } catch (e) { len = 0; } }
     return {
       el, stroked, len,
       marching: el.dataset.marching === '1' || el.classList.contains('dash'),
@@ -4014,22 +4032,30 @@ function animateViz(card){
           el.style.strokeDasharray = '';
           el.style.strokeDashoffset = '';
         }
+        a.cancel();          // 终态与基础样式一致，取消即可，别留一堆 fill 动画
+        el._draw = null;
       };
       el._draw = a;
     } else if (p.spin || p.pulse){
-      el._draw = el.animate([{ opacity: 0 }, { opacity: 1 }],
+      const b = el.animate([{ opacity: 0 }, { opacity: 1 }],
         { duration: 420, delay, easing: 'ease-out', fill: 'both' });
+      b.onfinish = () => { b.cancel(); el._draw = null; };
+      el._draw = b;
     } else {
-      el._draw = el.animate(
+      const c = el.animate(
         [{ opacity: 0, transform: 'scale(.7)' }, { opacity: 1, transform: 'scale(1)' }],
         { duration: 440, delay, easing: 'cubic-bezier(.2,.9,.25,1.25)', fill: 'both' });
+      c.onfinish = () => { c.cancel(); el._draw = null; };
+      el._draw = c;
     }
   });
   texts.forEach((el, i) => {
     if (el._draw) el._draw.cancel();
-    el._draw = el.animate(
+    const t = el.animate(
       [{ opacity: 0, transform: 'translateY(7px)' }, { opacity: 1, transform: 'none' }],
       { duration: 420, delay: 220 + i * 45, easing: 'ease-out', fill: 'both' });
+    t.onfinish = () => { t.cancel(); el._draw = null; };
+    el._draw = t;
   });
 }
 
