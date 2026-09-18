@@ -12,7 +12,7 @@
 
 ```
 ┌─ World.execute(me);▌  Mili ·《Miracle Milk》 ──────────────────────┐
-│ ▁▃▅▂█▆▁▃  [载入音频] ... · 04:12      [原版时间轴][导入LRC][导出LRC] │
+│ ▁▃▅▂█▆▁▃  [载入音频] 站点音频 · audio.mp3 · 03:31  [原版时间轴][导入LRC] │
 ├───────────────────────────────────────────────────────────────────┤
 │  ┌── 歌词卡 34 / 86 ──────────┐  ┌─ Vegetable.java   L107–115 ──┐  │
 │  │ If I'm an eggplant        │  │ public sealed interface      │  │
@@ -46,24 +46,28 @@
 
 ## 音频
 
-仓库里**不含音频**——把商业唱片塞进公开仓库很容易被版权方下架，自己本地打包更省事。
+**站点已内置 `audio.mp3`**（160kbps · 44.1kHz · 4.04MB，从 24bit/192kHz 无损压下来），
+打开 https://user-lqt.github.io/world-execute-me/ 即自动载入并套用精确时间轴，按空格开始播放。
 
-页面有两种用法：
+音频走同源流式加载，HTML 只有 573KB，首屏立刻可见；进度拖动交给 HTTP Range，不占内存。
 
-1. **直接拖音频进去**（`.mp3 / .m4a / .flac / .ogg / .wav`）。时长接近原版（212s ± 6s）时会**自动套用内置精确时间轴**，一句都不用打点。
-2. **打包成单文件**，双击即播、离线可用：
+想换成别的版本（翻唱/现场），直接把自己的文件拖进页面即可覆盖。
+
+### 打包成离线单文件
+
+`build.js` 可以把字体和音频一起内联，产出**双击即播、零外部依赖**的单个 HTML：
 
 ```bash
-# 先把无损压成适合内嵌的体积
+# 1. 无损压成适合内嵌的体积
 ffmpeg -i "Mili - world.execute (me) ;.flac" -map 0:a:0 -vn -map_metadata -1 \
        -c:a libmp3lame -b:a 160k -ar 44100 -ac 2 audio.mp3
 
-# 字体 + 音频一起内联
+# 2. 字体 + 音频一起内联
 node build.js --src src/index.html --out world-execute-me-standalone.html \
               --font fonts/CascadiaMono.ttf --audio audio.mp3
 ```
 
-142MB 的 24bit/192kHz FLAC → 4.04MB MP3 → **5.96MB 单文件 HTML**，零外部依赖。
+142MB 的 24bit/192kHz FLAC → 4.04MB MP3 → **5.96MB 单文件 HTML**。
 
 ### 时间轴来源
 
@@ -121,6 +125,7 @@ node build.js --src src/index.html --out index.html --font fonts/CascadiaMono.tt
 ## 致谢与说明
 
 * 原曲：**Mili — world.execute(me);**（专辑《Miracle Milk》）词曲版权归 Mili / 原作者所有
+  仓库内的 `audio.mp3` 为个人非商业使用而内置，如版权方要求会立即移除
 * 同步歌词时间轴：[LRCLIB](https://lrclib.net/)（开源歌词库）
 * 内嵌字体：[Cascadia Code](https://github.com/microsoft/cascadia-code)（SIL Open Font License 1.1，见 `fonts/LICENSE-Cascadia.txt`）
 * 页面代码与那 86 段 Java 联想代码：MIT，见 [LICENSE](LICENSE)

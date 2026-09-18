@@ -1,5 +1,6 @@
-# 音频：版权归 Mili / 原作者，不进版本库
+# 音频：版权归 Mili / 原作者；仓库只放 Pages 播放用的那一个文件
 *.mp3
+!audio.mp3
 *.m4a
 *.flac
 *.wav

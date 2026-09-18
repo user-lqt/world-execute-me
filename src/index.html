@@ -2099,9 +2099,33 @@ function loadAudioFile(file){
 }
 
 /**
- * 内置音频：构建脚本会把 base64 塞进
- * <script id="bundledAudio" type="text/plain">…</script>
- * 这里解成 Blob 再喂给 <audio>，避免超长 data: URI 的解析开销。
+ * 同目录音频：优先 audio.mp3，其次 audio.m4a / audio.ogg。
+ * 用探测元素试，避免在主 audio 上留下 error 状态；都找不到就退回无声模式。
+ */
+function trySidecar(){
+  const candidates = ['audio.mp3', 'audio.m4a', 'audio.ogg'];
+  let i = 0;
+  const next = () => {
+    if (i >= candidates.length){ setPlaying(true); return; }   // 没有音频：估时推进
+    const url = candidates[i++];
+    const probe = new Audio();
+    probe.preload = 'metadata';
+    probe.addEventListener('loadedmetadata', () => {
+      audio.src = url;
+      audio.load();
+      audio.addEventListener('loadedmetadata',
+          () => onAudioReady('站点音频 · ' + url + ' · ' + fmt(audio.duration)), {once:true});
+    }, {once:true});
+    probe.addEventListener('error', next, {once:true});
+    probe.src = url;
+  };
+  next();
+}
+
+/**
+ * 内置音频：构建脚本会注入一个 type="text/plain" 的数据块（id 为 bundledAudio），
+ * 这里是把它解成 Blob 再喂给 <audio>，避免超长 data: URI 的解析开销。
+ * 注意：本文件里不要出现闭合的 script 标签字面量，HTML 解析器会在那里截断脚本。
  */
 function loadBundled(el){
   try {
@@ -2633,6 +2657,8 @@ const bundledEl = document.getElementById('bundledAudio');
 if (bundledEl && bundledEl.textContent.replace(/\s+/g, '').length > 1000){
   toast('正在解包内置音频…');
   setTimeout(() => loadBundled(bundledEl), 40);   // 先让首帧渲染出来
+} else if (/^https?:$/.test(location.protocol) || location.protocol === 'file:'){
+  trySidecar();                                   // 同目录的 audio.mp3
 } else {
   setPlaying(true);
 }
