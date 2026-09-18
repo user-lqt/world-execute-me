@@ -94,9 +94,10 @@ h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);ve
   gap:26px;
   max-width:1340px;margin:0 auto 28px;padding:28px 26px 24px;
   border:1px solid var(--line);border-radius:16px;
-  background:linear-gradient(158deg,rgba(16,22,36,.86),rgba(9,12,20,.9));
-  backdrop-filter:blur(6px);
-  transition:opacity .45s ease,transform .45s ease,border-color .45s ease,box-shadow .45s ease,filter .45s;
+  /* 不用 backdrop-filter：每张卡都会开一个背景采样层，实测页面里有 89 个
+     backdrop-filter 元素，是最大的性能开销。改用不透明渐变代替。 */
+  background:linear-gradient(158deg,#101624,#090c14);
+  transition:opacity .45s ease,transform .45s ease,border-color .45s ease,box-shadow .45s ease;
 }
 .card.past{opacity:.2;filter:saturate(.45)}
 .card.active{
@@ -201,33 +202,45 @@ pre.code .ch.head{
 
 #bgc{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.34}
 
-/* 环形跑马灯边框：只有当前句在跑 */
+/* 环形跑马灯改成合成层动画：
+   原来用 @property 动画 conic-gradient 的角度，会让整张卡每帧重新光栅化
+   （约 60 万像素/帧）；现在只滑动一条光带，纯 transform，走合成器。 */
 .card .runner{display:none}
 .card.active .runner{
-  display:block;position:absolute;inset:-1px;border-radius:17px;pointer-events:none;padding:1.4px;
-  background:conic-gradient(from var(--bang),
-      transparent 0 58%, rgba(110,231,255,.95) 76%, rgba(255,90,168,.9) 83%, transparent 92%);
-  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite:xor;mask-composite:exclude;
-  animation:runBorder 5.5s linear infinite;
+  display:block;position:absolute;left:1px;right:1px;top:1px;height:2px;
+  overflow:hidden;border-radius:15px 15px 0 0;pointer-events:none;
 }
-@keyframes runBorder{to{--bang:360deg}}
+.card.active .runner::before{
+  content:"";position:absolute;top:0;left:0;height:2px;width:30%;
+  background:linear-gradient(90deg,transparent,var(--cyan) 45%,var(--pink) 60%,transparent);
+  animation:runBorder 3s linear infinite;
+}
+@keyframes runBorder{from{transform:translateX(-110%)}to{transform:translateX(360%)}}
 
-/* 换句时自上而下扫过一道光 */
+/* 换句时自上而下扫过一道光（改用 transform，避免每帧动 top 触发布局） */
 .card .scan{
-  position:absolute;left:2px;right:2px;top:-90px;height:90px;border-radius:16px;pointer-events:none;opacity:0;
-  background:linear-gradient(180deg,transparent,rgba(110,231,255,.14),transparent);
+  position:absolute;left:2px;right:2px;top:0;height:100%;border-radius:16px;pointer-events:none;opacity:0;
+  background:linear-gradient(180deg,transparent 42%,rgba(110,231,255,.15) 50%,transparent 58%);
 }
 .card.active .scan{animation:sweep 1.25s cubic-bezier(.4,0,.2,1) 1}
-@keyframes sweep{0%{opacity:0;top:-90px}18%{opacity:1}100%{opacity:0;top:100%}}
+@keyframes sweep{
+  0%{opacity:0;transform:translateY(-100%)}
+  18%{opacity:1}
+  100%{opacity:0;transform:translateY(100%)}
+}
 
 /* 音频电平驱动的辉光 */
 .card::after{
   content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;opacity:0;transition:opacity .5s;
   background:radial-gradient(120% 90% at 22% -10%,rgba(110,231,255,.20),transparent 62%);
 }
-.card.active::after{opacity:calc(.45 + var(--level,0) * .55)}
+.card.active::after{opacity:calc(.45 + var(--level,0) * .55);will-change:opacity}
+
+/* 非当前卡冻结全部 SVG 动画（脉冲 / 旋转 / 流动虚线，全页合计近千个元素），
+   切回当前卡时自动从暂停处继续 */
+.card:not(.active) .viz svg *{animation-play-state:paused}
+/* 标签页切到后台时全站暂停 */
+body.page-hidden *{animation-play-state:paused!important}
 
 /* SVG：填充图形围绕自身中心缩放 */
 .viz svg rect,.viz svg circle,.viz svg ellipse{transform-box:fill-box;transform-origin:center}
@@ -2081,6 +2094,7 @@ const modeBtn = document.getElementById('mode');
 const trackEl = document.getElementById('track');
 
 let index = 0, playing = false, timer = null, stepMode = true, suppress = false, scrollTimer = null;
+let lastActiveCard = null;
 const N = LINES.length;
 totEl.textContent = String(N).padStart(2,'0');
 
@@ -2137,6 +2151,10 @@ function setIndex(i, opts){
   });
 
   const active = cards[i];
+  if (lastActiveCard && lastActiveCard !== active && lastActiveCard._idles)
+    for (const a of lastActiveCard._idles) a.pause();
+  if (active._idles) for (const a of active._idles) a.play();
+  lastActiveCard = active;
   typeEn(active.querySelector('.en'), LINES[i].en);
 
   const preEl = active.querySelector('pre.code');
@@ -2147,6 +2165,7 @@ function setIndex(i, opts){
   }
   typeCode(active.querySelector('code'), LINES[i].code.length);
   animateViz(active);
+  warmUp(i);
 
   curEl.textContent = String(i + 1).padStart(2,'0');
   fillEl.style.width = (N > 1 ? (i / (N - 1)) * 100 : 100) + '%';
@@ -2216,7 +2235,7 @@ let TAPPED = new Set();     // 已手工打点的下标
 let audioReady = false, tapMode = false, loopOne = false;
 let manualUntil = 0, rafId = null;
 let actx = null, analyser = null, freqData = null, srcNode = null;
-let levelFrame = 0, lastLevel = '';
+let levelFrame = 0, lastLevel = '', specGrad = null, spectrumDirty = false;
 
 /** 低频能量 → --level，驱动当前卡的辉光 */
 function setLevel(v){
@@ -2320,6 +2339,7 @@ function renderStamps(){
 /* ---- 主循环：音频时间 → 当前句 ---- */
 function tick(){
   rafId = requestAnimationFrame(tick);
+  if (bodyHidden) return;                 // 后台标签页直接不干活
   stepGlyphs();
   drawSpectrum();
   if (!playing) setLevel(0);
@@ -2438,28 +2458,41 @@ function buildSpectrum(){
 }
 
 function drawSpectrum(){
-  if (!analyser || !freqData || specCanvas.hidden) return;
+  if (!analyser || !freqData || specCanvas.hidden || bodyHidden) return;
+  if (!playing){ if (spectrumDirty){ clearSpectrum(); spectrumDirty = false; } return; }
+  spectrumDirty = true;
+
+  if (!specGrad){                                   // 渐变只建一次，不逐柱逐帧新建
+    const g = specCanvas.getContext('2d').createLinearGradient(0, 0, 0, specCanvas.height);
+    g.addColorStop(0, '#ff5aa8');
+    g.addColorStop(1, '#6ee7ff');
+    specGrad = g;
+  }
   const ctx = specCanvas.getContext('2d');
   const w = specCanvas.width, h = specCanvas.height;
   analyser.getByteFrequencyData(freqData);
   ctx.clearRect(0, 0, w, h);
-  const bars = 40, step = Math.max(1, Math.floor(freqData.length / bars));
+  const bars = 32, step = Math.max(1, Math.floor(freqData.length / bars));
 
-  let low = 0;                                   // 低频能量 → 页面辉光
-  for (let i = 1; i < 6; i++) low += freqData[i] || 0;
   levelFrame++;
-  if (levelFrame % 3 === 0) setLevel(Math.min(1, low / 5 / 170));
+  if (levelFrame % 8 === 0){                        // 量化 + 降频，减少整卡重绘
+    let low = 0;
+    for (let i = 1; i < 6; i++) low += freqData[i] || 0;
+    setLevel(Math.round(Math.min(1, low / 5 / 170) * 10) / 10);
+  }
 
+  ctx.fillStyle = specGrad;
   for (let i = 0; i < bars; i++){
     let v = 0;
     for (let j = 0; j < step; j++) v = Math.max(v, freqData[i * step + j] || 0);
     const bh = Math.max(1, v / 255 * h);
-    const g = ctx.createLinearGradient(0, h, 0, h - bh);
-    g.addColorStop(0, '#6ee7ff');
-    g.addColorStop(1, '#ff5aa8');
-    ctx.fillStyle = g;
     ctx.fillRect(i * (w / bars) + 1, h - bh, w / bars - 2, bh);
   }
+}
+
+function clearSpectrum(){
+  const ctx = specCanvas.getContext('2d');
+  ctx.clearRect(0, 0, specCanvas.width, specCanvas.height);
 }
 
 /* ---- 打点校准 ---- */
@@ -2606,7 +2639,13 @@ window.addEventListener('drop', e => {
 
 tapBtn.addEventListener('click', toggleTapMode);
 loopBtn.addEventListener('click', toggleLoop);
-setInterval(() => { if ((audioReady || TS) && !tapMode) renderStamps(); }, 1000);
+/* 时间轴变动时已经各自调过 renderStamps，不再每秒全量刷新 86 个时间戳 */
+
+/* 切到后台就全站停摆 */
+document.addEventListener('visibilitychange', () => {
+  bodyHidden = document.hidden;
+  document.body.classList.toggle('page-hidden', bodyHidden);
+});
 
 
 /* ---- 复制 ---- */
@@ -2687,7 +2726,8 @@ stage.addEventListener('scroll', () => {
    ========================================================= */
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const GLYPHS  = '01<>{}[]()/*+-=%$#@!?;:~^&|\\アカサタナハマヤラワ';
-let scrambleHost = null;
+const GLYPH_SIZE = 13, GLYPH_FONT = GLYPH_SIZE + 'px monospace';
+let bodyHidden = false, scrambleHost = null;
 
 /** 歌词解码：未解析的字符在乱码表里滚动，逐个落定 */
 function typeEn(el, text){
@@ -2811,6 +2851,27 @@ function typeCode(codeEl, charCount){
   codeEl._typeRaf = requestAnimationFrame(frame);
 }
 
+/**
+ * 预切字符：把后面几张卡的逐字 span 提前在空闲时段建好。
+ * buildChars 一次要 createElement 上千个节点，放在切句的瞬间会造成掉帧。
+ */
+const idle = window.requestIdleCallback || (fn => setTimeout(() => fn({ timeRemaining: () => 8 }), 120));
+function warmUp(from){
+  const targets = [from + 1, from + 2, from - 1].filter(k => k >= 0 && k < N);
+  let idx = 0;
+  const pump = deadline => {
+    let built = 0;
+    while (idx < targets.length && built < 2){
+      const codeEl = cards[targets[idx]].querySelector('code');
+      if (codeEl && !codeEl._chars) buildChars(codeEl);
+      idx++; built++;
+      if (deadline && deadline.timeRemaining && deadline.timeRemaining() < 2) break;
+    }
+    if (idx < targets.length) idle(pump);
+  };
+  idle(pump);
+}
+
 /** 让方块光标留在代码可视区内 */
 function followHead(pre, head){
   if (!pre || pre.scrollHeight <= pre.clientHeight + 4) return;
@@ -2819,52 +2880,63 @@ function followHead(pre, head){
   else if (hr.top < pr.top + 8) pre.scrollTop -= (pr.top - hr.top) + 44;
 }
 
-/** SVG 自我绘制：描边路径"画"出来，填充图形弹出来，文字浮上来 */
+/** SVG 自我绘制：描边路径"画"出来，填充图形弹出来，文字浮上来。
+ *  先集中读几何、再集中写动画，避免逐个元素的读写交替造成强制重排。 */
 function animateViz(card){
   const svg = card.querySelector('.viz svg');
   if (!svg) return;
+  card._idles = [];                       // 记录本条卡上无限循环的虚线动画，切走时暂停
   const shapes = [...svg.querySelectorAll('path,line,polyline,polygon,circle,ellipse,rect')];
   if (REDUCED){
-    shapes.forEach(el => { if (el._draw){ el._draw.cancel(); el._draw = null; } });
+    for (const el of shapes) if (el._draw){ el._draw.cancel(); el._draw = null; }
     return;
   }
-  const n = shapes.length;
-  const stepMs = n > 60 ? 9 : n > 24 ? 16 : 26;
-
-  shapes.forEach((el, i) => {
-    if (el._draw) el._draw.cancel();
-    if (el._idle) { el._idle.cancel(); el._idle = null; }
-    const delay = i * stepMs;
-
+  // ---- 读阶段 ----
+  const plan = shapes.map(el => {
     let stroked = false, len = 0;
     try {
       const cs = getComputedStyle(el);
       stroked = cs.stroke !== 'none' && (parseFloat(cs.strokeWidth) || 0) > 0;
       if (stroked) len = el.getTotalLength();
     } catch (e) { stroked = false; }
-
-    if (stroked && len > 0){
-      const marching = el.dataset.marching === '1' || el.classList.contains('dash');
-      if (marching){ el.dataset.marching = '1'; el.classList.remove('dash'); }
-      el.style.strokeDasharray = len + ' ' + len;
-      el.style.strokeDashoffset = len;
+    return {
+      el, stroked, len,
+      marching: el.dataset.marching === '1' || el.classList.contains('dash'),
+      spin: el.classList.contains('spin'),
+      pulse: el.classList.contains('pulse')
+    };
+  });
+  const texts = [...svg.querySelectorAll('text')];
+  // ---- 写阶段 ----
+  const n = plan.length;
+  const stepMs = n > 60 ? 9 : n > 24 ? 16 : 26;
+  plan.forEach((p, i) => {
+    const el = p.el;
+    if (el._draw) el._draw.cancel();
+    if (el._idle){ el._idle.cancel(); el._idle = null; }
+    const delay = i * stepMs;
+    if (p.stroked && p.len > 0){
+      if (p.marching){ el.dataset.marching = '1'; el.classList.remove('dash'); }
+      el.style.strokeDasharray = p.len + ' ' + p.len;
+      el.style.strokeDashoffset = p.len;
       const a = el.animate(
-        [{ strokeDashoffset: len }, { strokeDashoffset: 0 }],
+        [{ strokeDashoffset: p.len }, { strokeDashoffset: 0 }],
         { duration: 760, delay, easing: 'cubic-bezier(.25,.8,.3,1)', fill: 'both' });
       a.onfinish = () => {
-        if (marching){
+        if (p.marching){
           el.style.strokeDasharray = '6 7';
           el.style.strokeDashoffset = '0';
           el._idle = el.animate(
             [{ strokeDashoffset: 0 }, { strokeDashoffset: -52 }],
             { duration: 2600, iterations: Infinity, easing: 'linear' });
+          if (card._idles) card._idles.push(el._idle);
         } else {
           el.style.strokeDasharray = '';
           el.style.strokeDashoffset = '';
         }
       };
       el._draw = a;
-    } else if (el.classList.contains('spin') || el.classList.contains('pulse')){
+    } else if (p.spin || p.pulse){
       el._draw = el.animate([{ opacity: 0 }, { opacity: 1 }],
         { duration: 420, delay, easing: 'ease-out', fill: 'both' });
     } else {
@@ -2873,8 +2945,7 @@ function animateViz(card){
         { duration: 440, delay, easing: 'cubic-bezier(.2,.9,.25,1.25)', fill: 'both' });
     }
   });
-
-  [...svg.querySelectorAll('text')].forEach((el, i) => {
+  texts.forEach((el, i) => {
     if (el._draw) el._draw.cancel();
     el._draw = el.animate(
       [{ opacity: 0, transform: 'translateY(7px)' }, { opacity: 1, transform: 'none' }],
@@ -2886,46 +2957,45 @@ function animateViz(card){
 const bgc  = document.getElementById('bgc');
 const bctx = bgc && bgc.getContext('2d');
 let glyphs = [], gw = 0, gh = 0;
-const DPR = () => Math.min(window.devicePixelRatio || 1, 2);
 
 function spawnGlyph(anywhere){
-  const d = DPR();
   return {
     x: Math.random() * gw,
-    y: anywhere ? Math.random() * gh : -20 * d,
-    v: (0.10 + Math.random() * 0.34) * d,
-    size: (9 + Math.random() * 8) * d,
+    y: anywhere ? Math.random() * gh : -20,
+    v: 0.10 + Math.random() * 0.34,
+    size: GLYPH_SIZE,
     a: 0.04 + Math.random() * 0.18,
     ch: GLYPHS[(Math.random() * GLYPHS.length) | 0],
-    flick: 40 + Math.random() * 260
+    flick: 60 + Math.random() * 320
   };
 }
 
 function resizeBg(){
   if (!bctx) return;
-  const d = DPR();
+  const d = 1;                                  // 背景是装饰，锁 1x 省一半填充率
   gw = bgc.width  = Math.floor(innerWidth  * d);
   gh = bgc.height = Math.floor(innerHeight * d);
   bgc.style.width  = innerWidth + 'px';
   bgc.style.height = innerHeight + 'px';
-  const count = Math.max(28, Math.min(90, Math.floor(innerWidth / 18)));
+  const count = Math.max(20, Math.min(46, Math.floor(innerWidth / 34)));
   glyphs = Array.from({ length: count }, () => spawnGlyph(true));
+  bctx.font = GLYPH_FONT;                       // 字体只设一次，不逐字重设
 }
 if (bctx){ resizeBg(); window.addEventListener('resize', resizeBg); }
 
 function stepGlyphs(){
-  if (!bctx || REDUCED || gw === 0) return;
+  if (!bctx || REDUCED || gw === 0 || bodyHidden) return;
   bctx.clearRect(0, 0, gw, gh);
   bctx.textBaseline = 'top';
+  bctx.font = GLYPH_FONT;
   for (let i = 0; i < glyphs.length; i++){
     const g = glyphs[i];
     g.y += g.v;
     if (g.y > gh + 24) Object.assign(g, spawnGlyph(false));
     if (--g.flick < 0){
-      g.flick = 40 + Math.random() * 260;
+      g.flick = 60 + Math.random() * 320;
       g.ch = GLYPHS[(Math.random() * GLYPHS.length) | 0];
     }
-    bctx.font = g.size + 'px monospace';
     bctx.fillStyle = 'rgba(110,231,255,' + g.a.toFixed(3) + ')';
     bctx.fillText(g.ch, g.x, g.y);
   }
