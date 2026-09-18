@@ -1890,10 +1890,20 @@ function setIndex(i, opts){
 
   if (opts.scroll !== false){
     suppress = true;
-    requestAnimationFrame(() => active.scrollIntoView({behavior:'smooth', block:'center'}));
+    requestAnimationFrame(() => scrollCardToTop(active));
     clearTimeout(setIndex._t);
     setIndex._t = setTimeout(() => { suppress = false; }, 700);
   }
+}
+
+/**
+ * 把卡片顶部对齐到滚动区顶部，而不是垂直居中。
+ * 卡片普遍比视口高（代码很长），居中会把编号和英文歌词顶到视野外，
+ * 只剩译文和 SVG —— 那正好是最该看见的一句。
+ */
+function scrollCardToTop(el){
+  const pad = 18;
+  stage.scrollTo({ top: Math.max(0, el.offsetTop - pad), behavior: 'smooth' });
 }
 
 function next(){ const i = Math.min(N - 1, index + 1); setIndex(i); seekTo(i); }
