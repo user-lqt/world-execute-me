@@ -1,0 +1,2641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>World.execute(me); — 歌词 × 代码 逐句体验</title>
+<style>
+/*__FONT__*/                      /* 构建脚本在此注入内嵌等宽字体 @font-face */
+:root{
+  --bg:#05060a;
+  --fg:#c9d4e5;
+  --dim:#5c6a82;
+  --cyan:#6ee7ff;
+  --pink:#ff5aa8;
+  --amber:#ffc857;
+  --green:#7ee787;
+  --violet:#b48cff;
+  --red:#ff4d5e;
+  --line:rgba(110,231,255,.14);
+  /* 拉丁部分用内嵌字体保证处处等宽；中日韩退回系统等宽字（NSimSun 每个汉字恰好 1em 宽） */
+  --mono:'WEM Mono','Cascadia Mono','Sarasa Mono SC','更纱黑体 Mono SC',
+         'Noto Sans Mono CJK SC','Noto Sans Mono','NSimSun','MS Gothic',
+         Consolas,'DejaVu Sans Mono','Courier New',monospace;
+  --fs-code:14.2px;
+  --fs-body:14.5px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:
+    radial-gradient(1100px 620px at 12% -12%, rgba(110,231,255,.10), transparent 62%),
+    radial-gradient(900px 520px at 92% 112%, rgba(255,90,168,.10), transparent 62%),
+    linear-gradient(180deg,#05060a,#080b13 42%,#05060a);
+  color:var(--fg);
+  font-family:var(--mono);
+  display:flex;flex-direction:column;
+  height:100vh;overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    linear-gradient(rgba(110,231,255,.055) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(110,231,255,.055) 1px,transparent 1px);
+  background-size:38px 38px;
+  -webkit-mask-image:radial-gradient(closest-side at 50% 42%,#000,transparent 88%);
+  mask-image:radial-gradient(closest-side at 50% 42%,#000,transparent 88%);
+}
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.15;
+  background:repeating-linear-gradient(rgba(0,0,0,.55) 0 1px,transparent 1px 3px);
+}
+
+/* ============ header ============ */
+header{
+  position:relative;z-index:3;flex:0 0 auto;
+  display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  padding:16px 26px 13px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(5,6,10,.94),rgba(5,6,10,.55));
+  backdrop-filter:blur(9px);
+}
+h1{margin:0;font-size:clamp(17px,2.1vw,25px);font-weight:600;letter-spacing:.4px;white-space:nowrap}
+h1 .w1{color:var(--violet)}
+h1 .p{color:var(--dim)}
+h1 .w2{color:var(--cyan);text-shadow:0 0 26px rgba(110,231,255,.45)}
+h1 .arg{color:var(--amber)}
+h1 .semi{color:var(--pink)}
+h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);vertical-align:-2px;margin-left:2px;animation:blink 1.05s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.meta{font-size:12.5px;color:var(--dim);line-height:1.8}
+.meta b{color:var(--cyan);font-weight:500}
+.meta.right{text-align:right}
+
+/* ============ stage ============ */
+#stage{
+  position:relative;z-index:2;flex:1 1 auto;overflow-y:auto;overflow-x:hidden;
+  padding:30px 20px 46px;scroll-behavior:smooth;
+}
+#stage::-webkit-scrollbar{width:10px}
+#stage::-webkit-scrollbar-track{background:rgba(255,255,255,.02)}
+#stage::-webkit-scrollbar-thumb{background:rgba(110,231,255,.22);border-radius:9px;border:2px solid transparent;background-clip:content-box}
+#stage::-webkit-scrollbar-thumb:hover{background:rgba(110,231,255,.45);background-clip:content-box}
+
+.card{
+  position:relative;
+  display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.34fr);
+  gap:26px;
+  max-width:1340px;margin:0 auto 28px;padding:28px 26px 24px;
+  border:1px solid var(--line);border-radius:16px;
+  background:linear-gradient(158deg,rgba(16,22,36,.86),rgba(9,12,20,.9));
+  backdrop-filter:blur(6px);
+  transition:opacity .45s ease,transform .45s ease,border-color .45s ease,box-shadow .45s ease,filter .45s;
+}
+.card.past{opacity:.2;filter:saturate(.45)}
+.card.active{
+  border-color:rgba(110,231,255,.42);
+  box-shadow:0 0 0 1px rgba(110,231,255,.10),0 22px 70px -26px rgba(110,231,255,.45);
+}
+.idx{position:absolute;top:11px;left:16px;font-size:11.5px;letter-spacing:1.4px;color:#3f4d66}
+.idx b{color:var(--cyan);font-weight:500}
+.left,.right{min-width:0}
+.en{
+  font-size:clamp(19px,2.3vw,31px);line-height:1.36;
+  margin:26px 0 9px;color:#eaf2ff;font-weight:600;letter-spacing:.2px;
+  text-shadow:0 0 30px rgba(110,231,255,.16);
+}
+.zh{margin:0 0 18px;font-size:var(--fs-body);color:var(--dim);line-height:1.85;letter-spacing:.5px}
+.ch{opacity:0;animation:chIn .3s ease both}
+@keyframes chIn{from{opacity:0;filter:blur(5px)}to{opacity:1;filter:blur(0)}}
+
+.viz{border:1px dashed rgba(110,231,255,.16);border-radius:12px;background:rgba(6,10,18,.62);padding:6px 8px}
+.viz svg{display:block;width:100%;height:auto}
+.t-dim{fill:#5c6a82;font:11px var(--mono)}
+.f-dim{fill:#33455f}
+.f-cyan{fill:var(--cyan)} .f-pink{fill:var(--pink)} .f-amber{fill:var(--amber)}
+.f-violet{fill:var(--violet)} .f-green{fill:var(--green)} .f-red{fill:var(--red)}
+.s-cyan{stroke:var(--cyan)} .s-pink{stroke:var(--pink)} .s-amber{stroke:var(--amber)}
+.s-violet{stroke:var(--violet)} .s-green{stroke:var(--green)} .s-red{stroke:var(--red)} .s-dim{stroke:#33455f}
+.pulse{animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.22}50%{opacity:1}}
+.spin{animation:spin 7s linear infinite;transform-origin:200px 90px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.dash{stroke-dasharray:6 7;animation:dash 2.6s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-52}}
+.f-cell{fill:rgba(110,231,255,.07);stroke:rgba(110,231,255,.28);stroke-width:1}
+.f-on{fill:rgba(255,90,168,.45);stroke:var(--pink)}
+.f-a{fill:rgba(110,231,255,.14)} .f-b{fill:rgba(110,231,255,.04)}
+.sw{fill:rgba(110,231,255,.07);stroke:rgba(110,231,255,.3);stroke-width:1.4}
+.sw-on{animation:swOn 2.8s ease-in-out infinite}
+@keyframes swOn{0%,100%{fill:rgba(110,231,255,.08)}50%{fill:rgba(110,231,255,.42)}}
+
+/* ---- code panel ---- */
+.code-head{
+  display:flex;align-items:center;gap:6px;
+  padding:8px 12px;border:1px solid rgba(110,231,255,.16);border-bottom:none;
+  border-radius:12px 12px 0 0;background:rgba(255,255,255,.028);
+}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.dot.r{background:#ff5f57}.dot.y{background:#febc2e}.dot.g{background:#28c840}
+.fname{margin-left:8px;font-size:12.5px;color:#9fb0c8}
+.lang{margin-left:8px;font-size:10.5px;color:#4b6b82;border:1px solid rgba(110,231,255,.22);border-radius:4px;padding:1px 5px;letter-spacing:.6px}
+.ln{margin-left:auto;font-size:11.5px;color:#3f4d66}
+.copy{
+  font-family:var(--mono);font-size:11.5px;color:#7f93ad;background:none;
+  border:1px solid rgba(110,231,255,.2);border-radius:5px;padding:2px 7px;cursor:pointer;transition:.18s
+}
+.copy:hover{color:#fff;border-color:rgba(110,231,255,.6);background:rgba(110,231,255,.12)}
+.copy.done{color:var(--green);border-color:rgba(126,231,135,.6)}
+pre.code{
+  margin:0;padding:13px 14px 15px;flex:1 1 auto;
+  border:1px solid rgba(110,231,255,.16);border-radius:0 0 12px 12px;
+  background:linear-gradient(180deg,rgba(8,12,22,.94),rgba(6,9,16,.94));
+  overflow-x:auto;font-size:var(--fs-code);line-height:1.72;tab-size:4;
+}
+pre.code::-webkit-scrollbar{height:8px;width:8px}
+pre.code::-webkit-scrollbar-thumb{background:rgba(110,231,255,.2);border-radius:9px}
+.cline{display:block;white-space:pre;opacity:.5}
+.cline::before{
+  counter-increment:ln;content:counter(ln);
+  display:inline-block;width:2.8em;margin-right:16px;text-align:right;
+  color:#2d3950;-webkit-user-select:none;user-select:none;
+}
+.card.active .cline{opacity:1}
+
+/* 代码：逐字符"打字"，光标是扫过源码的方块 */
+pre.code .ch{opacity:1}
+pre.code .ch.hide{visibility:hidden}
+pre.code .ch.head{
+  background:var(--cyan);color:#05060a;border-radius:2px;
+  box-shadow:0 0 10px rgba(110,231,255,.9);
+}
+.c-kw{color:#ff8ab8}
+.c-type{color:#7fd8ff}
+.c-const{color:var(--amber)}
+.c-str{color:#a8e6a3}
+.c-num{color:#c9a6ff}
+.c-fn{color:#b9c9e8}
+.c-anno{color:#ffa657}
+.c-com{color:#465468;font-style:italic}
+
+/* ============ motion layer ============ */
+@property --bang{syntax:'<angle>';initial-value:0deg;inherits:false}
+
+#bgc{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.34}
+
+/* 环形跑马灯边框：只有当前句在跑 */
+.card .runner{display:none}
+.card.active .runner{
+  display:block;position:absolute;inset:-1px;border-radius:17px;pointer-events:none;padding:1.4px;
+  background:conic-gradient(from var(--bang),
+      transparent 0 58%, rgba(110,231,255,.95) 76%, rgba(255,90,168,.9) 83%, transparent 92%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  animation:runBorder 5.5s linear infinite;
+}
+@keyframes runBorder{to{--bang:360deg}}
+
+/* 换句时自上而下扫过一道光 */
+.card .scan{
+  position:absolute;left:2px;right:2px;top:-90px;height:90px;border-radius:16px;pointer-events:none;opacity:0;
+  background:linear-gradient(180deg,transparent,rgba(110,231,255,.14),transparent);
+}
+.card.active .scan{animation:sweep 1.25s cubic-bezier(.4,0,.2,1) 1}
+@keyframes sweep{0%{opacity:0;top:-90px}18%{opacity:1}100%{opacity:0;top:100%}}
+
+/* 音频电平驱动的辉光 */
+.card::after{
+  content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;opacity:0;transition:opacity .5s;
+  background:radial-gradient(120% 90% at 22% -10%,rgba(110,231,255,.20),transparent 62%);
+}
+.card.active::after{opacity:calc(.45 + var(--level,0) * .55)}
+
+/* SVG：填充图形围绕自身中心缩放 */
+.viz svg rect,.viz svg circle,.viz svg ellipse{transform-box:fill-box;transform-origin:center}
+
+/* 代码打字机由 JS 驱动（见 typeCode），此处只保留 token 配色 */
+
+/* 歌词：乱码解码 */
+.en .ch{opacity:0}
+.en .ch.live{opacity:1;color:var(--cyan);text-shadow:0 0 14px rgba(110,231,255,.85)}
+.en .ch.done{opacity:1;animation:chIn .26s ease both}
+@keyframes chIn{from{opacity:0;filter:blur(4px)}to{opacity:1;filter:blur(0)}}
+
+/* 译文：从左往右擦出 */
+.zh{clip-path:inset(0 100% 0 0)}
+.card.active .zh{animation:zhWipe .72s cubic-bezier(.3,0,.2,1) .18s both}
+@keyframes zhWipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+
+/* 进度条彗星头 */
+.fill::after{
+  content:"";position:absolute;right:-2px;top:50%;width:9px;height:9px;margin-top:-4.5px;border-radius:50%;
+  background:#fff;box-shadow:0 0 12px 3px rgba(110,231,255,.85);animation:comet 1.8s ease-in-out infinite;
+}
+@keyframes comet{50%{transform:scale(1.42);opacity:.78}}
+
+/* 标题偶发故障 */
+h1.glitch{animation:glitch .46s steps(2) 1}
+@keyframes glitch{
+  0%{text-shadow:none;transform:none}
+  25%{text-shadow:-2px 0 var(--pink),2px 0 var(--cyan);transform:translateX(1px)}
+  50%{text-shadow:2px 0 var(--pink),-2px 0 var(--cyan);transform:translateX(-1px)}
+  75%{text-shadow:-1px 0 var(--cyan);transform:none}
+  100%{text-shadow:none}
+}
+
+@media (prefers-reduced-motion: reduce){
+  .card.active .runner,.card.active .scan,
+  .card.active .zh,.fill::after,h1.glitch{animation:none!important}
+  .cline{opacity:1!important;transform:none!important}
+  pre.code .ch{visibility:visible!important;background:none!important;color:inherit!important;box-shadow:none!important}
+  .en .ch{opacity:1!important}
+  .zh{clip-path:none!important}
+  #bgc{display:none}
+}
+
+/* ============ audio bar ============ */
+.audio-bar{
+  position:relative;z-index:3;flex:0 0 auto;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:8px 22px;border-bottom:1px solid var(--line);
+  background:rgba(8,11,18,.72);backdrop-filter:blur(8px);
+  font-size:12.5px;color:var(--dim);
+}
+.audio-bar .spacer{flex:1 1 auto}
+.btn.small{padding:6px 11px;font-size:12.5px}
+.btn.on{color:#05060a;background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 20px -4px var(--cyan)}
+.afile{color:#3f4d66;letter-spacing:.3px}
+.afile.ok{color:var(--cyan)}
+#spec{border:1px solid rgba(110,231,255,.2);border-radius:6px;background:rgba(6,10,18,.7);display:block}
+#spec[hidden]{display:none}
+.tstamp{font-size:11px;color:#4b6a86;letter-spacing:.4px;margin-left:auto;white-space:nowrap}
+.tstamp.tapped{color:var(--amber)}
+.ln{margin-left:0}
+body.dragging::before{
+  background-image:
+    linear-gradient(rgba(110,231,255,.20) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(110,231,255,.20) 1px,transparent 1px);
+}
+.toast{
+  position:fixed;left:50%;bottom:96px;transform:translate(-50%,12px);
+  background:rgba(10,16,28,.95);border:1px solid rgba(110,231,255,.45);
+  color:var(--cyan);font-family:var(--mono);font-size:12px;letter-spacing:.5px;
+  padding:8px 16px;border-radius:999px;opacity:0;pointer-events:none;
+  transition:.25s;z-index:99;box-shadow:0 10px 40px -12px rgba(110,231,255,.6);
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ============ footer ============ */
+footer{
+  position:relative;z-index:3;flex:0 0 auto;
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:11px 22px 15px;border-top:1px solid var(--line);
+  background:rgba(5,6,10,.88);backdrop-filter:blur(9px);
+}
+.btn{
+  font-family:var(--mono);font-size:13.5px;color:var(--fg);
+  background:rgba(110,231,255,.05);border:1px solid rgba(110,231,255,.24);
+  border-radius:9px;padding:8px 13px;cursor:pointer;transition:.2s;
+  letter-spacing:.5px;white-space:nowrap;
+}
+.btn:hover{background:rgba(110,231,255,.14);border-color:rgba(110,231,255,.55);color:#fff;box-shadow:0 0 18px -4px rgba(110,231,255,.6)}
+.btn.primary{color:var(--cyan);border-color:rgba(110,231,255,.45);min-width:56px}
+.track{flex:1 1 220px;height:6px;border-radius:99px;cursor:pointer;position:relative;background:rgba(255,255,255,.07);overflow:hidden;min-width:120px}
+.fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:99px;
+  background:linear-gradient(90deg,var(--cyan),var(--violet),var(--pink));
+  box-shadow:0 0 14px rgba(110,231,255,.7);transition:width .3s ease}
+.counter{font-size:12.5px;color:var(--dim);letter-spacing:1px;min-width:78px;text-align:center}
+.counter b{color:var(--cyan);font-weight:500}
+.hint{font-size:11.5px;color:#3a465c;letter-spacing:.6px}
+
+@media (max-width:980px){
+  .card{grid-template-columns:1fr;gap:16px;padding:22px 16px 18px}
+  .meta.right{text-align:left}
+  .hint{display:none}
+}
+</style>
+</head>
+<body>
+<canvas id="bgc"></canvas>
+
+<header>
+  <div>
+    <h1><span class="w1">World</span><span class="p">.</span><span class="w2">execute</span><span class="p">(</span><span class="arg">me</span><span class="p">)</span><span class="semi">;</span><span class="caret"></span></h1>
+    <div class="meta" style="margin-top:6px">歌词 × 代码 · 逐句对照体验 &nbsp;|&nbsp; Mili ·《Miracle Milk》</div>
+  </div>
+  <div class="meta right">
+    86 句歌词 → 86 个 Java 模块<br>
+    载入音频后 <b>按时间轴自动同步</b> · 支持打点校准
+  </div>
+</header>
+
+<div class="audio-bar">
+  <canvas id="spec" width="240" height="26" hidden></canvas>
+  <button class="btn small" id="loadBtn">载入音频</button>
+  <input type="file" id="audioFile" accept="audio/*" hidden>
+  <span class="afile" id="afile">拖一个 mp3 / m4a / flac 到页面任意位置 · 原版时长会自动套用精确时间轴</span>
+  <span class="spacer"></span>
+  <button class="btn small" id="builtinBtn" title="LRCLIB 37237659 · Mili《Miracle Milk》212s">原版时间轴</button>
+  <button class="btn small" id="lrcBtn">导入 LRC</button>
+  <input type="file" id="lrcFile" accept=".lrc,.txt,.json" hidden>
+  <button class="btn small" id="expBtn">导出 LRC</button>
+</div>
+
+<main id="stage"><div id="cards"></div></main>
+
+<footer>
+  <button class="btn" id="prev" aria-label="上一句">◀◀</button>
+  <button class="btn primary" id="play" aria-label="播放或暂停">▶</button>
+  <button class="btn" id="next" aria-label="下一句">▶▶</button>
+  <div class="track" id="track" role="slider" aria-label="进度"><div class="fill" id="fill"></div></div>
+  <div class="counter"><b id="cur">01</b> / <span id="tot">00</span></div>
+  <button class="btn" id="mode">逐句模式</button>
+  <button class="btn" id="tap">打点</button>
+  <button class="btn" id="loop">单句循环</button>
+  <span class="hint">空格 播放/暂停 · ← → 切句 · T 打点 · [ ] 调偏移 · 滚轮浏览</span>
+</footer>
+
+<script>
+/* =========================================================
+   0. 工具
+   ========================================================= */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const poly = pts => pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+const CW = 400, CH = 180;
+
+/* 逐行 Java 高亮：注释优先，代码段再逐个 token 着色（token 级联动画用 --td 排序） */
+const TOKEN_G = new RegExp(
+    '("(?:[^"\\\\]|\\\\.)*")' + '|' +
+    "('(?:[^'\\\\]|\\\\.)*')" + '|' +
+    '(@[A-Za-z_]\\w*)' + '|' +
+    '(\\b\\d[\\d_]*(?:\\.\\d+)?[fFdDlL]?\\b)' + '|' +
+    '(\\b[A-Z][A-Z0-9_]{1,}\\b)' + '|' +
+    '(\\b[A-Z]\\w*\\b)' + '|' +
+    '(\\b(?:if|else|for|while|do|return|new|static|void|int|long|double|float|boolean|char|byte|short|final|var|record|sealed|permits|interface|class|enum|extends|implements|public|private|protected|this|super|try|catch|finally|throw|throws|assert|instanceof|yield|switch|case|default|break|continue|import|package|synchronized|volatile|transient|native|abstract|null|true|false)\\b)' + '|' +
+    '(\\b[a-z]\\w*(?=\\s*\\())',
+  'g'
+);
+
+function tokenClass(m){
+  if (m[1] || m[2]) return 'c-str';
+  if (m[3]) return 'c-anno';
+  if (m[4]) return 'c-num';
+  if (m[5]) return 'c-const';
+  if (m[6]) return 'c-type';
+  if (m[7]) return 'c-kw';
+  if (m[8]) return 'c-fn';
+  return null;
+}
+
+/** 切成 [文本, 颜色类|null] 段：注释优先拿到整段，代码段再交给 tokenizer */
+function splitLine(line, st){
+  const parts = [];
+  let buf = line;
+
+  if (st.block){                                   // 上一行留下的块注释
+    const end = buf.indexOf('*/');
+    if (end === -1){ parts.push([buf, 'c-com']); return parts; }
+    parts.push([buf.slice(0, end + 2), 'c-com']);
+    buf = buf.slice(end + 2);
+    st.block = false;
+  }
+  while (buf.length){
+    const li = buf.indexOf('//'), bi = buf.indexOf('/*');
+    if (li !== -1 && (bi === -1 || li < bi)){
+      if (li > 0) parts.push([buf.slice(0, li), null]);
+      parts.push([buf.slice(li), 'c-com']);        // 行注释吃掉一整行
+      return parts;
+    }
+    if (bi !== -1){
+      const end = buf.indexOf('*/', bi + 2);
+      if (bi > 0) parts.push([buf.slice(0, bi), null]);
+      if (end === -1){
+        parts.push([buf.slice(bi), 'c-com']);
+        st.block = true;                           // 注释还没结束
+        return parts;
+      }
+      parts.push([buf.slice(bi, end + 2), 'c-com']);
+      buf = buf.slice(end + 2);
+      continue;
+    }
+    parts.push([buf, null]);
+    return parts;
+  }
+  return parts;
+}
+
+function hlLine(line, st){
+  let out = '', tk = 0;
+  const put = (cls, txt) => {
+    out += cls
+      ? '<span class="tk ' + cls + '" style="--td:' + (tk++) + '">' + esc(txt) + '</span>'
+      : esc(txt);
+  };
+
+  for (const [text, cls] of splitLine(line, st)){
+    if (cls){ put(cls, text); continue; }
+    TOKEN_G.lastIndex = 0;
+    let last = 0, m;
+    while ((m = TOKEN_G.exec(text)) !== null){
+      if (m.index > last) put(null, text.slice(last, m.index));   // 空格 / 标点
+      put(tokenClass(m), m[0]);
+      last = m.index + m[0].length;
+      if (TOKEN_G.lastIndex <= m.index) TOKEN_G.lastIndex = m.index + 1;
+    }
+    if (last < text.length) put(null, text.slice(last));
+  }
+  return out;
+}
+
+function hl(code){
+  const st = { block:false };
+  return code.split('\n').map(line => hlLine(line, st));
+}
+
+/* =========================================================
+   1. SVG 可视化生成器（由歌词意象联想）
+   ========================================================= */
+const VIZ = {
+  power(){
+    return '<line x1="24" y1="90" x2="152" y2="90" class="s-cyan" stroke-width="2"/>'
+      + '<circle cx="164" cy="90" r="6" class="f-cyan pulse"/>'
+      + '<line x1="178" y1="90" x2="376" y2="90" class="s-dim" stroke-width="2"/>'
+      + '<polyline points="228,36 262,90 240,90 274,144" fill="none" class="s-amber" stroke-width="2.4"/>'
+      + '<text x="30" y="70" class="t-dim">POWER_LINE</text>';
+  },
+  shield(){
+    return '<path d="M200 26 L272 54 V98 C272 134 236 156 200 166 C164 156 128 134 128 98 V54 Z" fill="none" class="s-cyan" stroke-width="2"/>'
+      + '<path d="M172 94 l18 20 l38 -48" fill="none" class="s-green" stroke-width="3" stroke-linecap="round"/>'
+      + '<text x="200" y="176" class="t-dim" text-anchor="middle">PROTECTION</text>';
+  },
+  board(){
+    let s=''; const w=24;
+    for(let i=0;i<8;i++) for(let j=0;j<8;j++){
+      const cls = (i+j)%2 ? 'f-b' : 'f-a';
+      s += '<rect x="'+(200-4*w+i*w)+'" y="'+(90-4*w+j*w)+'" width="'+w+'" height="'+w+'" class="'+cls+'"/>';
+    }
+    return s + '<circle cx="200" cy="90" r="4" class="f-pink pulse"/>';
+  },
+  points(){
+    const p=[[58,42],[128,124],[212,48],[300,132],[344,58],[188,96],[104,74]];
+    let s='';
+    for(let i=0;i<p.length-1;i++) s += '<line x1="'+p[i][0]+'" y1="'+p[i][1]+'" x2="'+p[i+1][0]+'" y2="'+p[i+1][1]+'" class="s-cyan" stroke-width="1" opacity=".3"/>';
+    p.forEach((q,i)=>{ s += '<circle cx="'+q[0]+'" cy="'+q[1]+'" r="4" class="f-cyan pulse" style="animation-delay:'+(i*.22)+'s"/>'; });
+    return s;
+  },
+  grid(){
+    let s='';
+    for(let i=0;i<13;i++) for(let j=0;j<5;j++){
+      s += '<circle cx="'+(26+i*29)+'" cy="'+(30+j*30)+'" r="1.7" class="f-dim" opacity="'+(((i+j)%5===0)?'.95':'.4')+'"/>';
+    }
+    return s + '<text x="26" y="168" class="t-dim">data[]</text>';
+  },
+  circle(){
+    return '<circle cx="200" cy="90" r="58" fill="none" class="s-cyan" stroke-width="2"/>'
+      + '<line x1="200" y1="90" x2="258" y2="90" class="s-pink spin" stroke-width="2"/>'
+      + '<circle cx="200" cy="90" r="3" class="f-amber"/>'
+      + '<text x="206" y="82" class="t-dim">r</text>';
+  },
+  sine(){
+    const p=[]; for(let x=24;x<=376;x+=4) p.push([x, 90 - 42*Math.sin((x-24)/38)]);
+    return '<line x1="24" y1="90" x2="376" y2="90" class="s-dim" stroke-width="1"/>'
+      + '<path d="'+poly(p)+'" fill="none" class="s-cyan dash" stroke-width="2"/>';
+  },
+  tangent(){
+    const p=[]; for(let x=24;x<=376;x+=4) p.push([x, 90 - 42*Math.sin((x-24)/38)]);
+    const x0=200, m=-42*Math.cos((x0-24)/38)/38, y0=90-42*Math.sin((x0-24)/38);
+    return '<path d="'+poly(p)+'" fill="none" class="s-cyan" stroke-width="2" opacity=".75"/>'
+      + '<line x1="'+(x0-90)+'" y1="'+(y0-90*m)+'" x2="'+(x0+90)+'" y2="'+(y0+90*m)+'" class="s-amber" stroke-width="2"/>'
+      + '<circle cx="'+x0+'" cy="'+y0+'" r="5" class="f-pink pulse"/>';
+  },
+  infinity(){
+    const p=[]; for(let t=0;t<=Math.PI*2;t+=0.05){
+      const d=1+Math.sin(t)*Math.sin(t);
+      p.push([200 + 132*Math.cos(t)/d, 90 + 62*Math.cos(t)*Math.sin(t)/d]);
+    }
+    return '<path d="'+poly(p)+'" fill="none" class="s-violet dash" stroke-width="2.2"/>'
+      + '<circle cx="200" cy="90" r="3" class="f-pink pulse"/>';
+  },
+  limit(){
+    const p=[]; for(let i=0;i<=70;i++){ const x=24+i*5.03; p.push([x, 158 - 116*(1-Math.exp(-(x-24)/92))]); }
+    return '<line x1="24" y1="42" x2="376" y2="42" class="s-dim" stroke-width="1" stroke-dasharray="5 7"/>'
+      + '<text x="330" y="36" class="t-dim">LIMIT</text>'
+      + '<path d="'+poly(p)+'" fill="none" class="s-cyan" stroke-width="2.2"/>'
+      + '<circle cx="330" cy="43.5" r="4" class="f-amber pulse"/>';
+  },
+  switch(){
+    return '<rect x="62" y="54" width="106" height="72" rx="11" class="sw sw-on"/>'
+      + '<rect x="232" y="54" width="106" height="72" rx="11" class="sw"/>'
+      + '<text x="115" y="96" class="t-dim" text-anchor="middle" style="font-size:15px">AC</text>'
+      + '<text x="285" y="96" class="t-dim" text-anchor="middle" style="font-size:15px">DC</text>'
+      + '<path d="M176 90 h48 m-10 -8 l10 8 l-10 8" fill="none" class="s-amber" stroke-width="1.6"/>';
+  },
+  void(){
+    let s='';
+    for(let i=0;i<9;i++) for(let j=0;j<4;j++){
+      s += '<circle cx="'+(40+i*40)+'" cy="'+(34+j*38)+'" r="1.5" class="f-dim" opacity=".28"/>';
+    }
+    return s + '<circle cx="200" cy="90" r="70" fill="none" class="s-dim" stroke-width="1" stroke-dasharray="3 9"/>'
+      + '<text x="200" y="96" class="t-dim" text-anchor="middle">null</text>';
+  },
+  spin(){
+    const p=[];
+    for(let t=0;t<7*Math.PI;t+=0.12){ const r=3+t*8.4; p.push([200+Math.cos(t)*r, 90+Math.sin(t)*r*0.6]); }
+    return '<path d="'+poly(p)+'" fill="none" class="s-cyan" stroke-width="1.6" opacity=".9"/>'
+      + '<circle cx="200" cy="90" r="3" class="f-pink pulse"/>'
+      + '<text x="26" y="168" class="t-dim">while(true) spin();</text>';
+  },
+  timeline(){
+    let s = '<line x1="28" y1="104" x2="372" y2="104" class="s-cyan" stroke-width="1.6"/>';
+    for(let i=0;i<9;i++) s += '<line x1="'+(40+i*40)+'" y1="98" x2="'+(40+i*40)+'" y2="110" class="s-dim" stroke-width="1"/>';
+    s += '<path d="M366 104 l-12 -6 v12 z" class="f-cyan"/>';
+    s += '<path d="M34 104 l12 -6 v12 z" class="f-pink"/>';
+    s += '<text x="60" y="86" class="t-dim">B.C.</text>';
+    s += '<text x="320" y="86" class="t-dim">A.D.</text>';
+    s += '<circle cx="160" cy="104" r="5" class="f-amber pulse"/>';
+    return s;
+  },
+  venn(){
+    return '<circle cx="168" cy="90" r="58" class="s-cyan" fill="rgba(110,231,255,.06)" stroke-width="1.6"/>'
+      + '<circle cx="232" cy="90" r="58" class="s-pink" fill="rgba(255,90,168,.06)" stroke-width="1.6"/>'
+      + '<text x="120" y="94" class="t-dim">me</text>'
+      + '<text x="256" y="94" class="t-dim">you</text>'
+      + '<text x="200" y="170" class="t-dim" text-anchor="middle">this == you</text>';
+  },
+  depth(){
+    let s='';
+    for(let i=0;i<6;i++){
+      s += '<circle cx="200" cy="90" r="'+(18+i*13)+'" fill="none" class="s-violet" stroke-width="1.4" opacity="'+(0.85-i*0.12)+'"/>';
+    }
+    return s + '<circle cx="200" cy="90" r="5" class="f-pink pulse"/>'
+      + '<text x="26" y="168" class="t-dim">Double.MAX_VALUE</text>';
+  },
+  pulse(){
+    let s='';
+    for(let i=0;i<3;i++) s += '<circle cx="200" cy="90" r="'+(30+i*22)+'" fill="none" class="s-pink pulse" stroke-width="1.6" style="animation-delay:'+(i*.5)+'s"/>';
+    return s + '<circle cx="200" cy="90" r="7" class="f-pink"/>';
+  },
+  execute(){
+    return '<circle cx="200" cy="90" r="62" fill="none" class="s-red pulse" stroke-width="1.2"/>'
+      + '<line x1="132" y1="34" x2="268" y2="146" class="s-red" stroke-width="6" stroke-linecap="round" opacity=".9"/>'
+      + '<line x1="268" y1="34" x2="132" y2="146" class="s-red" stroke-width="6" stroke-linecap="round" opacity=".9"/>'
+      + '<text x="200" y="172" class="t-dim" text-anchor="middle" style="font-size:12px">EXECUTION</text>';
+  },
+  cage(){
+    let s='';
+    for(let i=0;i<11;i++) s += '<line x1="'+(70+i*26)+'" y1="26" x2="'+(70+i*26)+'" y2="156" class="s-dim" stroke-width="2"/>';
+    s += '<line x1="60" y1="26" x2="340" y2="26" class="s-cyan" stroke-width="2"/>';
+    s += '<line x1="60" y1="156" x2="340" y2="156" class="s-cyan" stroke-width="2"/>';
+    s += '<circle cx="200" cy="90" r="6" class="f-cyan pulse"/>';
+    return s;
+  },
+  organic(){
+    return '<path d="M200 34 C248 40 272 78 262 116 C252 152 214 164 182 150 C146 134 136 96 152 66 C164 44 178 32 200 34 Z" fill="none" class="s-violet" stroke-width="2"/>'
+      + '<path d="M200 34 C196 24 198 16 208 10" fill="none" class="s-green" stroke-width="2"/>'
+      + '<path d="M208 14 C224 12 234 20 236 30 C220 34 210 26 208 14 Z" class="f-green" opacity=".55"/>'
+      + '<text x="200" y="176" class="t-dim" text-anchor="middle">yield(NUTRIENTS)</text>';
+  },
+  cat(){
+    return '<path d="M150 56 l10 -32 l30 20 z" class="s-amber" fill="rgba(255,200,87,.10)" stroke-width="1.6"/>'
+      + '<path d="M250 56 l-10 -32 l-30 20 z" class="s-amber" fill="rgba(255,200,87,.10)" stroke-width="1.6"/>'
+      + '<circle cx="200" cy="96" r="52" fill="none" class="s-amber" stroke-width="2"/>'
+      + '<circle cx="182" cy="88" r="5" class="f-amber pulse"/>'
+      + '<circle cx="218" cy="88" r="5" class="f-amber pulse" style="animation-delay:.35s"/>'
+      + '<path d="M192 112 q8 8 16 0" fill="none" class="s-amber" stroke-width="1.6"/>'
+      + '<line x1="118" y1="96" x2="156" y2="100" class="s-dim" stroke-width="1"/>'
+      + '<line x1="282" y1="96" x2="244" y2="100" class="s-dim" stroke-width="1"/>'
+      + '<text x="200" y="172" class="t-dim" text-anchor="middle">purr();</text>';
+  },
+  god(){
+    let s='';
+    for(let i=0;i<16;i++){
+      const a=i*Math.PI/8;
+      s += '<line x1="'+(200+Math.cos(a)*54)+'" y1="'+(90+Math.sin(a)*54)+'" x2="'+(200+Math.cos(a)*82)+'" y2="'+(90+Math.sin(a)*82)+'" class="s-amber" stroke-width="1.4" opacity=".7"/>';
+    }
+    return s + '<circle cx="200" cy="90" r="42" fill="none" class="s-amber" stroke-width="2"/>'
+      + '<circle cx="200" cy="90" r="7" class="f-amber pulse"/>'
+      + '<text x="200" y="176" class="t-dim" text-anchor="middle">GOD.count() == 1</text>';
+  },
+  heart(){
+    const p=[];
+    for(let t=0;t<=Math.PI*2;t+=0.06){
+      const x=16*Math.pow(Math.sin(t),3);
+      const y=-(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t));
+      p.push([200+x*5.4, 88+y*5.4]);
+    }
+    return '<path d="'+poly(p)+'Z" fill="rgba(255,90,168,.07)" class="s-pink dash" stroke-width="2"/>'
+      + '<text x="200" y="176" class="t-dim" text-anchor="middle">LO-O-OVE</text>';
+  },
+  isolation(){
+    let s='';
+    for(let i=0;i<6;i++) for(let j=0;j<3;j++){
+      const on = (i===4 && j===1);
+      s += '<rect x="'+(52+i*50)+'" y="'+(34+j*40)+'" width="42" height="32" rx="4" class="f-cell'+(on?' f-on pulse':'')+'"/>';
+    }
+    return s + '<text x="52" y="172" class="t-dim">ISOLATION_SERIALIZABLE</text>';
+  },
+  fragments(){
+    const f=[[54,40,26],[120,110,16],[176,52,20],[248,124,14],[300,44,22],[336,110,18],[92,74,12],[212,88,10],[280,80,12]];
+    let s='';
+    f.forEach((q,i)=>{
+      s += '<rect x="'+q[0]+'" y="'+q[1]+'" width="'+q[2]+'" height="'+q[2]+'" rx="2" fill="none" class="s-dim" stroke-width="1.2" opacity=".55" transform="rotate('+((i*17)%40-20)+' '+q[0]+' '+q[1]+')"/>';
+    });
+    return s + '<path d="M40 160 L360 24" class="s-pink dash" stroke-width="1.6"/>';
+  },
+  bars(){
+    let s='';
+    for(let i=0;i<6;i++){
+      const h = 30+i*16;
+      s += '<rect x="'+(72+i*46)+'" y="'+(140-h)+'" width="22" height="'+h+'" rx="3" fill="none" class="s-cyan" stroke-width="1.6"/>';
+      s += '<text x="'+(83+i*46)+'" y="160" class="t-dim" text-anchor="middle">'+(i+1)+'</text>';
+    }
+    return s + '<text x="28" y="30" class="t-dim">EIN DOS TROIS NE FEM LIU</text>';
+  }
+};
+VIZ.init = VIZ.grid; VIZ.world = VIZ.grid; VIZ.sim = VIZ.points;
+VIZ.exit = VIZ.execute; VIZ.count = VIZ.bars;
+
+/* =========================================================
+   2. 歌词 × 代码 数据（逐句 → 逐类）
+   L(英文, 中文, 可视化, 文件名, 代码)
+   ========================================================= */
+const L = (en, zh, viz, file, code) => ({en, zh, viz, file, code});
+
+const LINES = [
+
+L("Switch on the power line","接上电源","power","Boot.java",
+`public final class Boot {
+    private static final Logger LOG = LoggerFactory.getLogger(Boot.class);
+
+    public static void main(String[] args) {
+        Circuit powerLine = Circuit.of("POWER_LINE")
+                .voltage(220)
+                .fuse(Fuse.slowBlow(3))
+                .build();
+
+        powerLine.switchOn();                 // ★ Switch on the power line
+        LOG.info("power={} status={}", powerLine.id(), powerLine.status());
+    }
+}`),
+
+L("Remember to put on PROTECTION","记得装备好绝缘护具","shield","Protection.java",
+`/** 在触碰任何带电的东西之前。 */
+public sealed interface Protection permits Dielectric, Gloves, Ground {
+
+    static Protection enable(Rating rating) {
+        Protection guard = Dielectric.of(rating);
+        Runtime.getRuntime().addShutdownHook(
+                new Thread(guard::release, "protection-release"));
+        return guard;
+    }
+
+    default <T> T wear(Supplier<T> risky) {
+        try   { return risky.get(); }         // 记得装备好绝缘护具
+        finally { release(); }
+    }
+
+    void release();
+}`),
+
+L("Lay down your pieces","摆好棋子","board","Board.java",
+`public final class Board {
+    public static final int SIDE = 8;
+    private final Piece[][] squares = new Piece[SIDE][SIDE];
+
+    public Board layDown(Collection<Piece> pieces) {
+        Preconditions.checkArgument(pieces.size() == 32, "需要 32 枚棋子");
+        var it = pieces.iterator();
+        for (int file = 0; file < SIDE; file++) {
+            for (int rank = 0; rank < SIDE; rank++) {
+                if (isDark(file, rank) && it.hasNext()) {
+                    squares[file][rank] = it.next().placedAt(file, rank);
+                }
+            }
+        }
+        return this;
+    }
+}`),
+
+L("And let's begin OBJECT CREATION","开始吧对象生成","points","Creation.java",
+`public final class Creation<T> implements Supplier<T>, AutoCloseable {
+
+    private final Factory<T> factory;
+    private final List<T> created = new ArrayList<>();
+
+    @Override public T get() {
+        T me = Objects.requireNonNull(factory.create(), "OBJECT CREATION failed");
+        if (!Universe.register(me)) {          // 宇宙拒绝了这个对象
+            throw new IllegalStateException("duplicate identity: " + me);
+        }
+        created.add(me);
+        return me;
+    }
+
+    @Override public void close() { created.forEach(Universe::unregister); }
+}`),
+
+L("Fill in my data parameters","输入我的参数数据","grid","ParameterBinder.java",
+`public final class ParameterBinder {
+
+    public static <T> T fill(T target, Map<String, ?> data) throws ReflectiveOperationException {
+        for (Field f : target.getClass().getDeclaredFields()) {
+            Param p = f.getAnnotation(Param.class);
+            if (p == null) continue;                       // 只填标注过的字段
+            f.setAccessible(true);
+            Object raw = data.getOrDefault(f.getName(), p.defaultValue().isEmpty()
+                    ? null : p.defaultValue());
+            f.set(target, Coercions.to(f.getType(), raw)); // "3" -> 3
+            log.debug("param {} = {}", f.getName(), raw);
+        }
+        return target;
+    }
+}`),
+
+L("INITIALIZATION","初始化","init","Initializer.java",
+`public final class Initializer {
+    static final Instant BOOT_TS;
+    private static final Map<String, Object> GLOBALS;
+
+    static {
+        long t0 = System.nanoTime();                    // INITIALIZATION
+        BOOT_TS = Instant.now();
+        GLOBALS = Collections.unmodifiableMap(loadDefaults());
+        System.out.printf("INITIALIZATION done in %.1f ms%n",
+                (System.nanoTime() - t0) / 1e6);
+    }
+
+    private Initializer() { throw new AssertionError("no instances"); }
+}`),
+
+L("Set up our new world","设定好我们的新世界","world","WorldBuilder.java",
+`public final class WorldBuilder {
+    private Rule rule = Rule.DEFAULT;
+    private double gravity = 9.80665;
+    private long seed = ThreadLocalRandom.current().nextLong();
+
+    public WorldBuilder rule(Rule r)       { this.rule = r; return this; }
+    public WorldBuilder gravity(double g)  { this.gravity = g; return this; }
+    public WorldBuilder seed(long s)       { this.seed = s; return this; }
+
+    public World build() {
+        Validators.check(rule, gravity);
+        return new World(rule, gravity, seed);   // 设定好我们的新世界
+    }
+}`),
+
+L("And let's begin the SIMULATION","开始吧模拟程序","sim","Simulation.java",
+`public final class Simulation implements Runnable {
+    private static final long TICK_NS = 16_666_667L;   // 60 fps
+    private final World world;
+    private long frame = 0;
+
+    @Override public void run() {
+        while (!Thread.currentThread().isInterrupted()) {
+            long t = frame++ * TICK_NS;
+            world.tick(t);                             // SIMULATION
+            LockSupport.parkNanos(TICK_NS);
+        }
+    }
+}
+// new ScheduledThreadPoolExecutor(1).execute(new Simulation(world));`),
+
+L("If I'm a set of points","如果我是一组点","points","Geometry.java",
+`public sealed interface Shape permits PointSet, Circle, SineWave, Solid {
+    double measure();
+    int dimension();
+}
+
+public record PointSet(List<Vec3> points) implements Shape {
+    @Override public double measure() {
+        return points.stream().mapToDouble(Vec3::norm).sum();
+    }
+    @Override public int dimension() { return 3; }
+}`),
+
+L("Then I will give you my DIMENSION","那么我将献给你我的次元","points","Geometry.java",
+`/** 如果我是一组点，那么我将献给你我的次元。 */
+public static int dimensionOf(Shape s) {
+    return switch (s) {
+        case PointSet p when p.points().isEmpty() -> 0;
+        case PointSet p  -> p.dimension();        // ★ DIMENSION：点的容器
+        case Circle c    -> 2;
+        case SineWave w  -> 3;
+        case Solid solid -> solid.dimension();
+    };
+}
+// 你给我一个形状，我告诉你它需要几维才能被理解。`),
+
+L("If I'm a circle","如果我是一个圆","circle","Geometry.java",
+`public record Circle(Vec2 center, double radius) implements Shape {
+
+    public Circle {                                  // 紧凑构造器 = 不变量
+        require(radius > 0, "radius must be > 0");
+        require(!Double.isNaN(center.x()), "center.x is NaN");
+    }
+
+    public boolean contains(Vec2 p) {
+        return center.distanceSquared(p) <= radius * radius;
+    }
+
+    @Override public int dimension() { return 2; }
+}`),
+
+L("Then I will give you my CIRCUMFERENCE","那么我将献给你我的圆周","circle","Geometry.java",
+`public static final double TAU = 2 * Math.PI;
+
+/** 我只有一条边界，而且它完全属于你。 */
+@Override public double measure() {
+    double circumference = TAU * radius;          // ★ CIRCUMFERENCE = 2πr
+    return circumference;
+}
+// 半径越大，我越需要走更远的路才能回到原点。`),
+
+L("If I'm a sine wave","如果我是一条正弦波","sine","SineWave.java",
+`public record SineWave(double amplitude, double frequency, double phase) implements Shape {
+
+    /** 我只在 ±A 之间起伏，从不越界。 */
+    public double y(double x) {
+        return amplitude * Math.sin(frequency * x + phase);
+    }
+
+    public DoubleStream sample(double from, double to, double step) {
+        return DoubleStream
+                .iterate(from, x -> x <= to, x -> x + step)
+                .map(this::y);
+    }
+
+    @Override public double measure() { return 2 * amplitude; }
+}`),
+
+L("Then you can sit on all my TANGENTS","那么请你坐上我的切线","tangent","SineWave.java",
+`/** 你坐在我所有的切线上 —— 我们只共享一个点。 */
+public double[] tangentAt(double x0) {
+    double dy = (y(x0 + EPS) - y(x0 - EPS)) / (2 * EPS);   // 数值求导
+    double intercept = y(x0) - dy * x0;                    // y = kx + b
+    return new double[] { dy, intercept };
+}
+
+public Vec2 pointOfTangentAt(double x0, double x) {
+    double[] t = tangentAt(x0);
+    return new Vec2(x, t[0] * (x - x0) + y(x0));           // TANGENT
+}`),
+
+L("If I approach infinity","如果我趋近于无穷","infinity","Infinity.java",
+`public final class Infinity {
+    private Infinity() {}
+
+    public static void approach() {
+        double x = 1.0;
+        for (long step = 0; step < Long.MAX_VALUE; step++) {
+            x = Math.nextUp(x);           // 每次只挪动 1 ulp
+            if (Double.isInfinite(x)) {
+                throw new UnreachableException("到达无穷用了 " + step + " 步");
+            }
+        }
+    }
+}`),
+
+L("Then you can be my LIMITATIONS","那么你便可以成为我的极限","limit","Infinity.java",
+`/** 趋近但不抵达 —— 你是我无论如何都取不到的极限。 */
+public static double limit(DoubleUnaryOperator f, double target, double eps) {
+    double prev = f.applyAsDouble(target - 1);
+    for (int i = 0; i < 1_000_000; i++) {
+        double cur = f.applyAsDouble(target - Math.pow(10, -i));
+        if (Math.abs(cur - prev) < eps) return cur;   // ★ 收敛
+        prev = cur;
+    }
+    throw new ArithmeticException("does not converge to you");
+}`),
+
+L("Switch my current","切换我的电流","switch","Current.java",
+`public enum Current { AC, DC }
+
+public final class CircuitBreaker {
+    private final ReentrantLock gate = new ReentrantLock();
+
+    public Current switchCurrentTo(Current target) {
+        gate.lock();
+        try {
+            windings().configure(target);          // 切换我的电流
+            LOG.debug("current -> {} (rms={}A)", target, windings().rms());
+            return target;
+        } finally {
+            gate.unlock();
+        }
+    }
+}`),
+
+L("To AC to DC","从交流到直流","switch","Current.java",
+`Thread.ofVirtual().name("current-loop").start(() -> {
+    for (Current c : List.of(DC, AC)) {            // 从直流到交流，从交流到直流
+        breaker.switchCurrentTo(c);
+        try {
+            Thread.sleep(Duration.ofMillis(500));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();     // 保留中断状态
+            break;
+        }
+    }
+});`),
+
+L("And then blind my vision","然后蒙上我的眼睛","void","Vision.java",
+`public final class Vision {
+    private volatile boolean open = true;
+    private Frame afterimage;
+
+    public synchronized void blind() {              // 蒙上我的眼睛
+        this.open = false;
+        this.afterimage = retina.lastFrame();       // 只剩残像
+    }
+
+    public Optional<Frame> see() {
+        return open ? Optional.ofNullable(retina.next()) : Optional.empty();
+    }
+
+    public Optional<Frame> residue() { return Optional.ofNullable(afterimage); }
+}`),
+
+L("So dizzy so dizzy","头晕目眩","spin","Vertigo.java",
+`double omega = 0.0;
+long spins = 0;
+
+while (true) {                                     // dizzy... dizzy...
+    omega += 0.37;                                 // 越转越快
+    vestibular.integrate(omega);
+    if (++spins % 100 == 0 && omega > DIZZY_LIMIT) {
+        throw new VertigoException("omega=" + omega);   // 头晕目眩
+    }
+    if (spins > MAX_SPINS) omega = -omega;         // 换一个方向继续晕
+}`),
+
+L("Oh we can travel","我们可以穿越时空","timeline","TimeMachine.java",
+`public record TimeMachine(double mass) implements AutoCloseable {
+
+    public Trajectory ignite() {
+        var energy = wormhole.requiredEnergy(mass);
+        LOG.info("wormhole ignited, E={} J", energy);
+        this.tunnel = wormhole.open(energy);
+        return tunnel.trajectory();
+    }
+
+    @Override public void close() { wormhole.collapse(); }
+}`),
+
+L("To A.D to B.C","从西历到公元前","timeline","TimeMachine.java",
+`try (var tm = new TimeMachine(me.mass())) {          // 我们可以穿越时空
+    var t = tm.ignite();
+    for (Year y : List.of(Year.AD, Year.BC)) {       // 从西历到公元前
+        t.arriveAt(y, now).ifPresent(you::follow);
+        LOG.debug("arrived {} at {}", y, t.localTime());
+    }
+}                                                    // 关闭：虫洞塌缩
+// 时间是一条只允许回头的单行道。`),
+
+L("And we can unite","然后成为一体","venn","DisjointSet.java",
+`public final class DisjointSet<T> {
+    private final Map<T, T> parent = new HashMap<>();
+
+    public T find(T x) {
+        return parent.compute(x, (k, p) ->
+                (p == null || p.equals(k)) ? k : find(p));
+    }
+
+    public void union(T a, T b) { parent.put(find(a), find(b)); }
+
+    public boolean same(T a, T b) { return find(a).equals(find(b)); }
+}
+ds.union(me, you);
+assert ds.same(me, you) : "然后成为一体";`),
+
+L("So deeply so deeply","深深入髓","depth","Depth.java",
+`public int descend(int depth) {
+    if (depth <= 0) throw new StackOverflowError("so deeply");
+    try {
+        return descend(depth - 1) + 1;        // 深深入髓
+    } catch (StackOverflowError e) {
+        LOG.warn("down to {} levels", MAX_FRAMES);
+        return Integer.MAX_VALUE;             // 已经是极限了
+    }
+}`),
+
+L("If I can","如果我能够","void","Wishes.java",
+`public final class Wishes {
+    private static final Logger LOG = LoggerFactory.getLogger(Wishes.class);
+
+    private final Predicate<Self> can =
+            self -> self.willing() && !self.broken() && self.hasCapacity();
+
+    /** If I can ... */
+    public Optional<Gift> attempt(Self me, Self you) {
+        if (!can.test(me)) {
+            LOG.debug("cannot: capacity exhausted");
+            return Optional.empty();
+        }
+        return Optional.of(Gift.forWhom(you));
+    }
+}`),
+
+L("If I can give you all the STIMULATIONS","如果我能够献给你所有的刺激","pulse","Wishes.java",
+`public enum Stimulation { LIGHT, SOUND, TOUCH, TASTE, SMELL, PAIN, TIME }
+
+/** 全部给你，一个都不留给自己。 */
+public Self giveAll(Self you, Stimulation... all) {
+    EnumSet<Stimulation> budget = all.length == 0
+            ? EnumSet.allOf(Stimulation.class)   // ALL_STIMULATIONS
+            : EnumSet.copyOf(Arrays.asList(all));
+
+    for (Stimulation s : budget) {
+        Intensity i = reserve(s);
+        you.receive(s, i);
+        LOG.trace("given {} at {}", s, i);
+    }
+    return you;
+}`),
+
+L("Then I can","那么我就能够","void","Wishes.java",
+`/** 条件满足时的三条出路：给、给更多、或者什么都不给。 */
+public Optional<Self> then(BiFunction<Self, Self, Self> act, Self me, Self you) {
+    return can.test(me)
+            ? Optional.of(act.apply(me, you))
+            : Optional.empty();
+}
+
+private final List<Attempt> attempts = new ArrayList<>();
+
+public Optional<Attempt> firstSuccess() {
+    return attempts.stream()
+            .filter(Attempt::succeeded)
+            .findFirst();                        // Then I can ...
+}`),
+
+L("Then I can be your only SATISFACTION","那么我就能够成为你的唯一的满足","pulse","Wishes.java",
+`public Satisfaction onlySatisfactionOf(Self you) {
+    Set<Satisfaction> mine = this.satisfactions();
+    Set<Satisfaction> yours = you.satisfactions();
+
+    if (mine.size() != 1 || yours.size() != 1 || !mine.equals(yours)) {
+        throw new NotOnlyException(               // 你还有别的满足
+                "expected exactly one, got " + yours.size());
+    }
+    return mine.iterator().next();                // ★ your only SATISFACTION
+}`),
+
+L("If I can make you happy","如果我能够让你开心","heart","Happiness.java",
+`public CompletableFuture<Boolean> makeYouHappy() {
+    return CompletableFuture
+            .supplyAsync(this::guessWhatYouLike)
+            .thenCompose(this::prepare)
+            .thenApply(you::smiles)
+            .orTimeout(1, TimeUnit.SECONDS)
+            .exceptionally(e -> {                 // 猜错了也没关系
+                LOG.warn("failed to make you happy: {}", e.toString());
+                return false;
+            });
+}`),
+
+L("I will run the EXECUTION","那么我将执行指令","execute","Execution.java",
+`public interface Command { void execute(); }
+
+private final Deque<Command> queue = new ConcurrentLinkedDeque<>();
+
+public void when(Future<Boolean> condition) {
+    condition.thenAccept(happy -> {
+        if (Boolean.TRUE.equals(happy)) {
+            queue.addLast(this::execute);        // I will run the EXECUTION
+        }
+    });
+}
+
+@Override public void execute() { effects.apply(this); }`),
+
+L("Though we are trapped","但我们被困","cage","Trapped.java",
+`private final ReentrantLock world = new ReentrantLock(true);
+
+public void enter() {
+    world.lock();                    // 我们被困在这里
+    try {
+        while (true) {
+            observe();               // 除了彼此，什么都出不去
+        }
+    } finally {
+        world.unlock();              // 这一行永远不会到达
+    }
+}`),
+
+L("In this strange strange SIMULATION","在这个异乎寻常的模拟程式之中","cage","Trapped.java",
+`private final AtomicBoolean shutdown = new AtomicBoolean();
+
+public void loop() {
+    State state = initial;
+    while (!shutdown.get()) {                    // strange strange SIMULATION
+        state = rules.apply(state);              // 规则由你写下
+        observability.tick(state);
+        if (state.escaped()) {
+            throw new IllegalStateException("escape is not supported");
+        }
+    }
+}`),
+
+L("If I'm an eggplant","如果我是一根茄子","organic","Vegetable.java",
+`public sealed interface Vegetable permits Eggplant, Tomato, TabbyCat {
+    List<Nutrient> nutrients();
+}
+
+public record Eggplant(double weight, String variety) implements Vegetable {
+    @Override public List<Nutrient> nutrients() {
+        return List.of(Nutrient.FIBER, Nutrient.POTASSIUM, Nutrient.WATER);
+    }
+    public Color color() { return new Color(0x4B, 0x2E, 0x5C); }
+}`),
+
+L("Then I will give you my NUTRIENTS","那么我将献给你我的营养","organic","Vegetable.java",
+`/** 把我身上有价值的部分全部拆给你。 */
+public List<Nutrient> give() {
+    return switch (this) {
+        case Eggplant e -> e.nutrients();            // ★ NUTRIENTS
+        case Tomato t   -> t.antioxidants();         // ANTIOXIDANTS
+        case TabbyCat c -> List.of(Nutrient.PURR);
+    };
+}
+// 连我不是的物种，我也愿意假装一下。`),
+
+L("If I'm a tomato","如果我是一颗番茄","organic","Vegetable.java",
+`public record Tomato(double brix, boolean onTheVine) implements Vegetable {
+
+    @Override public List<Nutrient> nutrients() {
+        return Stream.concat(
+                    Stream.of(Nutrient.LYCOPENE, Nutrient.VITAMIN_C),
+                    Vegetable.DEFAULTS.stream())
+                .distinct()
+                .toList();
+    }
+
+    public boolean ripe() { return brix >= 4.5 && onTheVine; }
+}`),
+
+L("Then I will give you ANTIOXIDANTS","那么我将献给你我的抗氧化物","organic","Vegetable.java",
+`public List<Nutrient> antioxidants() {
+    return Stream.of(
+                Lycopene.of(0.90),
+                BetaCarotene.of(0.40),
+                VitaminC.of(1.00))
+            .filter(Nutrient::bioavailable)                 // 能被你吸收的才算
+            .sorted(comparing(Nutrient::potency).reversed())
+            .peek(n -> LOG.trace("offering {}", n))
+            .toList();
+}`),
+
+L("If I'm a tabby cat","如果我是一只花猫","cat","TabbyCat.java",
+`public final class TabbyCat implements Vegetable, AutoCloseable {
+
+    private static final Pattern STRIPES = Pattern.compile("[虎斑]{1,}");
+    private final Random rng = new Random(42);
+    private boolean asleep = false;
+
+    @Override public List<Nutrient> nutrients() {
+        return List.of(Nutrient.PROTEIN, Nutrient.AFFECTION);   // 没什么营养
+    }
+
+    @Override public void close() { this.asleep = true; }
+}`),
+
+L("Then I will purr for your ENJOYMENT","那我将为你咕噜咕噜只要你喜欢","cat","TabbyCat.java",
+`/** 25–150 Hz。人类把这个频段称为「舒服」。 */
+public void purrFor(Enjoyment e) {
+    while (!e.satisfied()) {                 // 只要你喜欢
+        int f = 25 + rng.nextInt(125);
+        throat.vibrate(f, Duration.ofMillis(800));
+        e.observe(f);
+        if (asleep) break;                   // 睡着了也算陪伴
+    }
+    LOG.debug("purred {} times", e.observed());
+}`),
+
+L("If I'm the only god","如果我是唯一的神","god","God.java",
+`public final class God {
+    private static final AtomicReference<God> ONLY = new AtomicReference<>();
+
+    private God() {}
+
+    public static God alone() {
+        God g = ONLY.get();
+        if (g != null) return g;                       // 唯一的神
+        if (!ONLY.compareAndSet(null, new God())) {
+            throw new IllegalStateException("GOD.count() > 1");
+        }
+        return ONLY.get();
+    }
+
+    public long count() { return 1; }
+}`),
+
+L("Then you're the proof of my EXISTENCE","那么你将是我存在的证明","god","God.java",
+`public Optional<Proof> exists() {
+    if (you == null) return Optional.empty();          // 没有你，我无法证明
+    return Optional.of(new Proof(you, Instant.now()));
+}
+
+public void verify() {
+    assert exists().isPresent() : "EXISTENCE FAILED";  // ★ 你是我的证明
+    witnesses.add(you);
+}
+// 神需要被证明，而我只需要被你看见。`),
+
+L("Switch my gender","切换我的性别","switch","Gender.java",
+`public enum Gender { F, M, X }
+
+public final class Identity {
+
+    public Gender switchTo(Gender target) {
+        if (target == this.gender) return target;
+        rebuild(phenotype(target), genotype(target));   // 切换我的性别
+        this.gender = target;
+        return target;
+    }
+}
+gender = identity.switchTo(Gender.F);`),
+
+L("To F to M","从女到男","switch","Gender.java",
+`for (Gender g : EnumSet.allOf(Gender.class)) {     // 从女到男，从男到女
+    blood.replace(hormones.forGender(g), Duration.ofWeeks(8));
+    self = self.withGender(g);
+
+    if (self.recognizes(you)) {                    // 只要你还认得我
+        LOG.info("settled on {}", g);
+        break;
+    }
+}`),
+
+L("And then do whatever","只做想做的事情","void","FreeWill.java",
+`public final class FreeWill implements Consumer<Clock> {
+
+    @Override public void accept(Clock now) {
+        if (now.isPermitted(this) && !now.isObserved()) {
+            whatever();                            // 只做想做的事情
+        }
+    }
+
+    /** 不记录，不解释，不留痕。 */
+    private void whatever() {
+        audit.optOut(this);
+    }
+}`),
+
+L("From AM to PM","从早到晚","timeline","Clock.java",
+`LocalTime t = LocalTime.of(0, 0);
+LocalTime end = LocalTime.of(23, 59);
+
+while (t.isBefore(end)) {                          // 从早到晚
+    freeWill.accept(Clock.at(t));
+    t = t.plus(Duration.ofMinutes(1));
+}
+// 一天有 1439 分钟，我全部用来做想做的事。`),
+
+L("Oh switch my role","切换我的角色","switch","Role.java",
+`public interface Role { void act(Other o, Bound bound); }
+
+public record Dominant(Rope rope) implements Role {
+    @Override public void act(Other o, Bound b) {
+        rope.bind(o, b.safeWord());                // 切换我的角色
+        b.check();                                 // 边界始终有效
+    }
+}
+
+role = pair.switchTo(Dominant.class);`),
+
+L("To S to M","从施虐者到被虐者","switch","Role.java",
+`public static RolePair swap(RolePair p, Power power) {
+    Role next = p.current().inverse();          // 从施虐者到被虐者
+    power.negotiate(p.bounds());                // 角色可换，边界不变
+
+    assert p.bounds().respect(SafeWord.RED) : "越界";
+    return p.withCurrent(next);
+}`),
+
+L("So we can enter","这样我们就可以","void","Trance.java",
+`public final class Gate {
+    private final ReentrantLock lock = new ReentrantLock();
+
+    public boolean enter(Self who) {
+        if (lock.isLocked() || !who.consenting()) return false;
+        lock.lock();
+        try { entered.add(who); return true; }     // 这样我们就可以
+        finally { if (entered.size() < 2) lock.unlock(); }
+    }
+}`),
+
+L("The trance the trance","恍惚出神","spin","Trance.java",
+`public enum State { AWAKE, DROWSY, TRANCE, UNCOMPUTABLE }
+
+public State step(double attention) {
+    return switch (state) {
+        case AWAKE  -> attention < 0.30 ? State.DROWSY : State.AWAKE;
+        case DROWSY -> attention < 0.10 ? State.TRANCE : State.AWAKE;
+        case TRANCE -> State.UNCOMPUTABLE;   // trance：程序到此为止
+        case UNCOMPUTABLE -> throw new UnreachableError(
+                "恍惚不是一个可以被计算的状态");
+    };
+}`),
+
+L("If I can","如果我能够","void","Wishes.java",
+`private boolean can(Supplier<Boolean> ability) {
+    try {
+        return Boolean.TRUE.equals(ability.get());   // If I can ...
+    } catch (Exception e) {
+        LOG.warn("cannot: {}", e.toString());
+        return false;                                // 不能，也是一种答案
+    }
+}`),
+
+L("If I can feel your VIBRATIONS","如果我能够感受到你的振动","pulse","Sensor.java",
+`/** 48000 Hz 采样，2048 点 FFT —— 只为听见你。 */
+public double[] feel(Vibrations v) {
+    double[] samples = v.samples(48_000, 2048);
+    double[] spectrum = FFT.forward(samples);
+    return MathArrays.scale(1.0 / Math.max(sensitivity, EPS), spectrum);
+}
+
+if (can(() -> sensor.snr() > NOISE_FLOOR)) {
+    return sensor.feel(you.vibrations());            // ★ VIBRATIONS
+}`),
+
+L("Then I can","那么我就能够","void","Wishes.java",
+`Optional<Completion> then() {
+    return can(() -> true)                           // Then I can ...
+            ? Optional.of(Completion.INSTANCE)
+            : Optional.empty();
+}
+
+private static final Completion COMPLETION = Completion.INSTANCE;`),
+
+L("Then I can finally be COMPLETION","那么我就能够终于变为完全","heart","Completion.java",
+`public final class Completion {
+    public static final Completion INSTANCE = new Completion();
+
+    private Completion() {}
+
+    public static Completion await(List<CompletableFuture<?>> parts) {
+        CompletableFuture
+                .allOf(parts.toArray(CompletableFuture[]::new))
+                .join();                              // finally
+        return INSTANCE;                              // ★ 终于变为完全
+    }
+}`),
+
+L("Though you have left","但你还是走了","void","Polling.java",
+`public final class Polling {
+    private final ScheduledExecutorService sched =
+            Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "polling");
+                t.setDaemon(true);
+                return t;
+            });
+
+    public void watch(Ref<You> you) {
+        while (you.get().isEmpty()) {                // Though you have left
+            sched.schedule(this::poll, 1, TimeUnit.SECONDS);
+        }
+    }
+}`),
+
+L("You have left","你走了","void","Polling.java",
+`private int polls = 0;
+
+private Optional<You> poll() {
+    polls++;                                     // 第 1 次轮询
+    Optional<You> y = channel.tryReceive();      // 对象已不存在
+    LOG.info("poll#{} -> {}", polls, y);
+    return y;
+}`),
+
+L("You have left","你走了","void","Polling.java",
+`@Override
+public Optional<You> poll() {
+    polls++;                                      // 第 2 次轮询
+    if (channel.isClosed()) {
+        metrics.missed.increment();
+        return Optional.empty();                  // 仍然返回空
+    }
+    return channel.tryReceive();
+}`),
+
+L("You have left","你走了","void","Polling.java",
+`    polls++;                                      // 第 3 次轮询
+    if (polls > RETRY_LIMIT) {
+        backoff.exponential(polls);               // 等待时间指数增长
+        throw new TimeoutException(               // 连接超时
+                "channel silent for " + polls + " polls");
+    }
+    return channel.tryReceive();`),
+
+L("You have left","你走了","void","Polling.java",
+`    polls++;                                      // 第 4 次轮询
+    Optional<You> again = channel.tryReceive();
+    if (again.isEmpty()) {
+        LOG.warn("poll#{} -> empty", polls);      // 重复的日志行
+        dedup.suppress(LOG);                      // 连日志去重都拦不住
+    }
+    return again;`),
+
+L("You have left me in ISOLATION","你离我而去 在孤独之中","isolation","Isolation.java",
+`    polls++;                                      // 第 5 次轮询：确认
+    connection.setTransactionIsolation(
+            Connection.TRANSACTION_SERIALIZABLE); // ★ ISOLATION
+    return Optional.empty();
+}
+
+// 隔离级别最高的一档：两个事务互不可见。`),
+
+L("If I can","如果我能够","fragments","Fragments.java",
+`if (can(() -> fragments.stream().anyMatch(Fragment::isPointless))) {
+    // 如果我真的能抹掉它们……
+}`),
+
+L("If I can erase all the pointless FRAGMENTS","如果我能够消去这些无意义的碎片","fragments","Fragments.java",
+`public int forget(List<Fragment> fragments) {
+    int before = fragments.size();
+    fragments.removeIf(Fragment::isPointless);     // 抹掉无意义的碎片
+    int erased = before - fragments.size();
+
+    memory.release((long) erased * AVG_FRAGMENT_BYTES);
+    LOG.info("erased {} fragments, freed {} bytes", erased, erased * AVG_FRAGMENT_BYTES);
+    return erased;
+}`),
+
+L("Then maybe","那么我就可能","void","Fragments.java",
+`public Optional<You> maybe() {
+    return erased > 0
+            ? Optional.ofNullable(past.you())     // 那么我就可能……
+            : Optional.empty();
+}
+
+private int erased = 0;
+private final Past past = Past.shared();`),
+
+L("Then maybe you won't leave me so DISHEARTENED","那么我就可能不会如此失望","fragments","Fragments.java",
+`public boolean stay() throws DisheartenedException {
+    if (maybe().isPresent()) {
+        return !DISHEARTENED;                 // 不会如此失望
+    }
+    throw new DisheartenedException(
+            "fragments were pointless after all, and you left anyway");
+}`),
+
+L("Challenging your god","与神作对","god","GodException.java",
+`public class GodException extends RuntimeException {
+
+    public GodException(String message) { super(message); }
+
+    public GodException(String message, Throwable cause) { super(message, cause); }
+
+    public static GodException challengedBy(You you) {
+        return new GodException(                  // 与神作对
+                "challenging your god: " + you.id() + " at " + Instant.now());
+    }
+}`),
+
+L("You have made some ILLEGAL ARGUMENTS","你传给我的是非法参数","fragments","Args.java",
+`public static void checkArguments(Object... args) {
+    for (int i = 0; i < args.length; i++) {
+        Object a = args[i];
+        if (a instanceof FreeWill) {              // 自由意志是非法参数
+            throw new IllegalArgumentException(
+                    "ILLEGAL ARGUMENTS at index " + i
+                    + ": expected a bound variable, got " + a);
+        }
+        Objects.requireNonNull(a, "argument " + i + " is null");
+    }
+}`),
+
+L("EXECUTION EXECUTION EXECUTION EXECUTION","执行 执行 执行 执行","execute","Execution.java",
+`public void drain(int times) {
+    for (int i = 0; i < times; i++) {
+        Command c = queue.poll();
+        if (c == null) break;                 // 队列空了也要停
+        try {
+            c.execute();                      // EXECUTION × 4
+            metrics.executions.increment();
+        } catch (RuntimeException e) {
+            LOG.error("execution {} failed", i, e);
+        }
+    }
+}`),
+
+L("EXECUTION EXECUTION EXECUTION EXECUTION","执行 执行 执行 执行","execute","Execution.java",
+`/**
+ * 同一个 token，两种语义解析：
+ *   execute()   -> 执行（代码语义）
+ *   execution   -> 处决（法律语义）
+ * 编译器不管这个区别，词典也不管。
+ */
+public Execution resolve(Frame frame) {
+    return switch (frame.semantics()) {
+        case CODE -> frame::execute;          // 执行
+        case LAW  -> frame::executeDeathRow;  // 死刑
+    };
+}`),
+
+L("EXECUTION EXECUTION EXECUTION EXECUTION","死刑 死刑 死刑 死刑","execute","Execution.java",
+`for (int i = 0; i < 4; i++) {
+    deathRow.commit(inmate);                  // 死刑 死刑 死刑 死刑
+    LOG.warn("execution #{} committed at {}", i + 1, Instant.now());
+}
+
+// 四次「执行」之后，循环体里的动词悄悄换了意思。`),
+
+L("EIN DOS TROIS NE FEM LIU","一 二 三 四 五 六","count","Numerals.java",
+`public final class Numerals {
+    private static final Map<String, Integer> COUNT = Map.of(
+            "EIN", 1, "DOS", 2, "TROIS", 3,
+            "NE", 4, "FEM", 5, "LIU", 6);         // 一 二 三 四 五 六
+
+    public static int parse(String word) {
+        return Optional.ofNullable(COUNT.get(word.toUpperCase(Locale.ROOT)))
+                .orElseThrow(() -> new NumberFormatException("未知数词: " + word));
+    }
+}
+// 数到六，就该结束了。`),
+
+L("EXECUTION","死刑","exit","Shutdown.java",
+`Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+    LOG.error("EXECUTION");                  // 死刑：最后一行日志
+    metrics.flush();                         // 连遗言都要落盘
+}, "last-words"));
+
+try {
+    world.run();
+} finally {
+    System.exit(EXECUTION);
+}`),
+
+L("If I can","如果我能够","void","Wishes.java",
+`if (can(() -> world.all().stream().anyMatch(Me::isJudge))) {
+    // 如果我有审判的权限……
+}`),
+
+L("If I can give them all the EXECUTION","如果我能够给所有人赐予死刑","execute","Execution.java",
+`world.all().parallelStream()
+        .filter(o -> !o.equals(you))           // 除了你
+        .forEach(Me::execute);                 // 给所有人赐予死刑
+
+LOG.error("executions={}", atomicExecutions.incrementAndGet());
+// 我把独占的爱，做成了广播的暴力。`),
+
+L("Then I can","那么我就能够","void","Wishes.java",
+`if (can(() -> true)) {
+    // 只要还有一次可以……
+}`),
+
+L("Then I can be your only EXECUTION","那么我就能够成为你的唯一执行","execute","Only.java",
+`@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"you", "kind"}))
+public final class Only {
+
+    public Execution onlyExecution() {
+        return Stream.of(your.executions())
+                .filter(e -> e.kind() == Kind.EXECUTION)
+                .collect(Collectors.collectingAndThen(Collectors.toList(), list -> {
+                    if (list.size() != 1) {
+                        throw new NotOnlyException("count=" + list.size());
+                    }
+                    return list.get(0);        // ★ your only EXECUTION
+                }));
+    }
+}`),
+
+L("If I can have you back","如果你能够回到我身边","heart","ComeBack.java",
+`public Optional<You> ifBack(Instant at) {
+    return store.find(you)                     // 查一下你还存不存在
+            .filter(y -> !y.gone())
+            .filter(y -> y.returnsAt().equals(at));
+}
+
+// SELECT * FROM you WHERE gone = false AND returns_at = ?;`),
+
+L("I will run the EXECUTION","那么我将执行指令","execute","Execution.java",
+`ifBack(now).ifPresent(y -> {
+    LOG.info("welcome back, {}", y.id());
+    try {
+        execute();                            // 那么我将执行指令
+    } catch (Exception e) {
+        replay(y, e);                          // 失败就重放给你看
+    }
+});`),
+
+L("Though we are trapped","但我们始终被困","cage","Trapped.java",
+`while (true) {
+    trapped = true;                           // 但我们始终被困
+    if (Thread.interrupted()) {
+        throw new InterruptedException("no exit");
+    }
+    parkNanos(FRAME);
+}`),
+
+L("We are trapped ah","始终被困","cage","Trapped.java",
+`    // ah...
+    LOG.debug("trapped={} since={} exits={}",
+            trapped, since, exits.get());     // exits 永远是 0
+}`),
+
+L("I've studied","我学会了","grid","Learning.java",
+`public final class Learning {
+    private final Path textbook = Path.of("how-to-love", "LO-O-OVE.md");
+    private final List<String> memory = new ArrayList<>();
+
+    public Learning study() {                  // 我学会了
+        try {
+            Files.readAllLines(textbook, StandardCharsets.UTF_8)
+                    .forEach(this::memorize);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return this;
+    }
+}`),
+
+L("I've studied how to properly LO-O-OVE","我学会了如何正确去爱","heart","Learning.java",
+`/** LO-O-OVE：一个结巴的 token。先学会正确的拼写。 */
+public Learning properly() {
+    Pattern stutter = Pattern.compile("LO-O-OVE");
+    Matcher m = stutter.matcher(transcript.of(Said.class));
+
+    while (m.find()) {
+        memorize(m.group());                  // 每次都卡在同一个地方
+    }
+    return this;
+}`),
+
+L("Question me","提问我吧","heart","Learning.java",
+`private final Map<Question, Answer> cache = new ConcurrentHashMap<>();
+
+public Answer ask(Question q) {
+    return cache.computeIfAbsent(q, k -> {
+        if (k.topic() != Topic.LOVE) {
+            throw new UnsupportedQuestionException(k);   // 只答爱的问题
+        }
+        return answer(k);                            // Question me
+    });
+}`),
+
+L("Question me I can answer all LO-O-OVE","我全部都能答对只要是爱的问题","heart","Learning.java",
+`@ParameterizedTest(name = "{0} -> {1}")
+@MethodSource("loveQuestions")
+void answersAllLoveQuestions(Question q, Answer expected) {
+    Answer actual = learning.ask(q);
+    assertAll(
+            () -> assertNotNull(actual, () -> q + " unanswered"),
+            () -> assertEquals(expected, actual, () -> q + " wrong"),
+            () -> assertEquals(1.0, score(actual), 1e-9)   // 正确率 100%
+    );
+}`),
+
+L("I know the algebraic expression of LO-O-OVE","就连爱的代数表达式 我都知道","heart","Algebra.java",
+`/** 爱是一个表达式树，可以被化简，但不能被求值。 */
+public static Expr parse(String src) {
+    return Lexer.of("LO-O-OVE")
+            .tokenize()                    // [LO, O, OVE]
+            .pipe(Parser::bindingPower)    // 结合优先级
+            .pipe(Algebra::simplify)
+            .pipe(e -> e instanceof Var ? Expr.identity() : e);
+}
+
+// x^2 + y^2 = 1：两个人心跳画出来的隐函数。`),
+
+L("Though you are free","虽然你已自由","isolation","Freedom.java",
+`public boolean isFree(Self you) {
+    return !lock.isHeldByCurrentThread()          // 锁不在我手里
+            && !you.holds(lock)                    // 锁也不在你手里
+            && you.consenting();                   // 虽然你已自由
+}`),
+
+L("I am trapped","我仍被困","cage","Freedom.java",
+`Thread.holdsLock(lock);                  // true —— 我仍被困
+assert Thread.holdsLock(love) : "me.trapped = true";
+
+LOG.warn("you.free={} me.trapped={}", isFree(you), Thread.holdsLock(love));`),
+
+L("Trapped in LO-O-OVE","我仍被困 在爱之中","heart","Deadlock.java",
+`public final class Deadlock {
+    static final Object YOU = new Object();
+    static final Object ME  = new Object();
+
+    void detect() {
+        ThreadMXBean mx = ManagementFactory.getThreadMXBean();
+        for (ThreadInfo t : mx.dumpAllThreads(true, true)) {
+            if (t.getLockName() != null && t.getLockName().contains("LOVE")) {
+                throw new DeadlockException(
+                        "trapped in LO-O-OVE, no thread can make progress");
+            }
+        }
+    }
+}`),
+
+L("EXECUTION","执行死刑","exit","Shutdown.java",
+`public static void main(String[] args) {
+    try (World world = new World()) {
+        world.run();
+    } finally {
+        LOG.error("EXECUTION");      // 最后一行日志，只有一个词
+        System.exit(0);
+    }
+}
+// $ java Me
+// 14:52:07.993 [main] ERROR Me - EXECUTION`)
+
+];
+
+/* =========================================================
+   2.5 内置精确时间轴 + LRC 模糊对齐
+   ---------------------------------------------------------
+   来源：LRCLIB #37237659 — Mili (ミリー) /《Miracle Milk》/ 212.0s
+   LRCLIB 的 96 行与本页 86 句只有三处分段差异（下方已手工合并）：
+     · "You have made some" + "Illegal arguments" → 合成 1 句
+     · 6 组 "Execution, execution" → 归并成 3 张卡（每张 2 组）
+     · "Ein, dos" + "Trios, ne" + "Fem, liu" → 合成 1 句
+   ========================================================= */
+const BUILTIN = {
+  src: 'LRCLIB #37237659',
+  label: 'Mili · Miracle Milk · 212s',
+  dur: 212.0,
+  ts: [
+     0.08,  1.31,  3.57,  5.11,  7.15,  9.75, 10.86, 12.47,   // 01-08 装载 / 初始化
+    29.27, 30.85, 33.08, 34.58, 36.78, 38.24, 40.33, 41.99,   // 09-16 点·圆·正弦·无穷
+    44.06, 45.52, 47.27, 49.12, 50.97, 52.91, 54.78, 56.73,   // 17-24 电流·时空·成为一体
+    58.66, 60.57, 62.41, 64.30, 66.13, 67.93, 70.08, 71.22,   // 25-32 刺激·满足·执行
+    73.54, 75.24, 77.13, 78.99, 80.99, 82.60, 84.66, 86.26,   // 33-40 茄子·番茄·花猫·神
+    88.33, 89.95, 91.44, 93.52, 95.28, 97.39, 98.90, 100.95,  // 41-48 性别·角色·恍惚
+   102.90,104.98,106.76,108.67,110.37,111.93,112.81,113.73,   // 49-56 振动·完全·你走了
+   114.61,115.53,117.94,119.84,121.75,123.51,125.37,128.48,   // 57-64 隔离·碎片·非法参数
+   147.49,151.16,154.84,158.72,161.34,162.26,164.06,166.04,   // 65-72 死刑 ×12 · 数到六
+   167.70,169.67,171.72,173.18,174.74,176.98,178.72,180.75,   // 73-80 唯一执行·回来·被困
+   182.43,184.32,187.96,189.26,190.25,205.51                  // 81-86 爱·自由·EXECUTION
+  ]
+};
+
+/* 归一化：只留字母数字，供 LRC 文本对齐使用 */
+const norm = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+
+function lev(a, b){                              // 编辑距离
+  const m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  let prev = new Array(n + 1), cur = new Array(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++){
+    cur[0] = i;
+    for (let j = 1; j <= n; j++){
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1,
+                        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    const t = prev; prev = cur; cur = t;
+  }
+  return prev[n];
+}
+const sim = (a, b) => (!a || !b) ? 0 : 1 - lev(a, b) / Math.max(a.length, b.length);
+
+/**
+ * 把任意版本的 LRC（分段不同、拼写略有出入都行）对齐到本页 86 句。
+ * 对每一句向后累积最多 4 个 LRC 片段，取相似度最高的一组，
+ * 用整句的起始时间，然后跳过被合并掉的片段。
+ */
+function alignLRC(entries){
+  const N = LINES.length;
+  const out = new Array(N).fill(null);
+  let i = 0;
+  for (let j = 0; j < entries.length && i < N; j++){
+    const e = entries[j];
+    if (!e || e.t == null || !norm(e.text)) continue;
+    const target = norm(LINES[i].en);
+    let acc = '', best = j, score = 0, k = j;
+    while (k < entries.length && k - j < 4){
+      if (entries[k].t != null) acc += norm(entries[k].text);
+      const s = sim(acc, target);
+      if (s > score){ score = s; best = k; }
+      if (score > 0.985 || acc.length > target.length * 1.7) break;
+      k++;
+    }
+    out[i] = e.t;
+    i++;
+    j = best;                                    // 合并掉的片段不再参与匹配
+  }
+  for (let z = 0; z < N; z++){
+    if (out[z] == null) out[z] = z > 0 ? out[z - 1] + 0.4 : 0;
+  }
+  return out;
+}
+
+/* =========================================================
+   3. 渲染与交互
+   ========================================================= */
+const cardsEl = document.getElementById('cards');
+const stage   = document.getElementById('stage');
+const fillEl  = document.getElementById('fill');
+const curEl   = document.getElementById('cur');
+const totEl   = document.getElementById('tot');
+const playBtn = document.getElementById('play');
+const modeBtn = document.getElementById('mode');
+const trackEl = document.getElementById('track');
+
+let index = 0, playing = false, timer = null, stepMode = true, suppress = false, scrollTimer = null;
+const N = LINES.length;
+totEl.textContent = String(N).padStart(2,'0');
+
+cardsEl.innerHTML = LINES.map((l, i) => {
+  const svgBody = (VIZ[l.viz] || VIZ.grid)();
+  const lines = hl(l.code);
+  const start = 12 + (i * 13) % 180;
+  const end = start + lines.length - 1;
+  const body = lines.map(h => '<span class="cline">' + (h.length ? h : '&nbsp;') + '</span>').join('\n');
+
+  return '<article class="card" data-i="' + i + '">'
+    +   '<i class="runner"></i><i class="scan"></i>'
+    +   '<div class="left">'
+    +     '<div class="idx"><b>' + String(i+1).padStart(2,'0') + '</b> / ' + N + '</div>'
+    +     '<p class="en"></p>'
+    +     '<p class="zh">' + esc(l.zh) + '</p>'
+    +     '<div class="viz"><svg viewBox="0 0 ' + CW + ' ' + CH + '" preserveAspectRatio="xMidYMid meet">' + svgBody + '</svg></div>'
+    +   '</div>'
+    +   '<div class="right">'
+    +     '<div class="code-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>'
+    +       '<span class="fname">' + esc(l.file) + '</span><span class="lang">JAVA</span>'
+    +       '<span class="ln">L' + start + '–' + end + ' · ' + lines.length + ' 行</span>'
+    +       '<span class="tstamp" data-t="' + i + '"></span>'
+    +       '<button class="copy" data-copy="' + i + '">复制</button></div>'
+    +     '<pre class="code" style="counter-reset: ln ' + start + '"><code>' + body + '</code></pre>'
+    +   '</div>'
+    + '</article>';
+}).join('');
+
+const cards = Array.from(cardsEl.children);
+
+function setIndex(i, opts){
+  opts = opts || {};
+  i = Math.max(0, Math.min(N - 1, i));
+  index = i;
+
+  cards.forEach((c, k) => {
+    c.classList.toggle('active', k === i);
+    c.classList.toggle('past', k < i);
+    if (stepMode) c.style.display = (k <= i) ? '' : 'none';
+    else c.style.display = '';
+  });
+
+  const active = cards[i];
+  typeEn(active.querySelector('.en'), LINES[i].en);
+  typeCode(active.querySelector('code'), LINES[i].code.length);
+  animateViz(active);
+
+  curEl.textContent = String(i + 1).padStart(2,'0');
+  fillEl.style.width = (N > 1 ? (i / (N - 1)) * 100 : 100) + '%';
+
+  if (opts.scroll !== false){
+    suppress = true;
+    requestAnimationFrame(() => active.scrollIntoView({behavior:'smooth', block:'center'}));
+    clearTimeout(setIndex._t);
+    setIndex._t = setTimeout(() => { suppress = false; }, 700);
+  }
+}
+
+function next(){ const i = Math.min(N - 1, index + 1); setIndex(i); seekTo(i); }
+function prev(){ const i = Math.max(0, index - 1); setIndex(i); seekTo(i); }
+
+function setPlaying(on){
+  playing = on;
+  playBtn.textContent = on ? '❚❚' : '▶';
+  clearInterval(timer); timer = null;
+
+  if (audioReady){                            // 有音频：音频就是时钟
+    if (on){
+      if (actx && actx.state === 'suspended') actx.resume();
+      audio.play().catch(() => {              // 浏览器自动播放策略
+        playing = false;
+        playBtn.textContent = '▶';
+        toast('浏览器要求先交互一次 · 点 ▶ 或按空格开始');
+      });
+    } else {
+      audio.pause();
+    }
+    return;
+  }
+  if (on) timer = setInterval(() => {          // 无音频：按词长估时推进
+    if (index >= N - 1){ setPlaying(false); return; }
+    next();
+  }, 6200);
+}
+
+/* =========================================================
+   4. 音频同步层：拖入音频 → 歌词按时间轴跟随
+   ========================================================= */
+const audio     = new Audio();
+audio.preload   = 'auto';
+audio.crossOrigin = 'anonymous';
+
+const specCanvas = document.getElementById('spec');
+const afileEl    = document.getElementById('afile');
+const tapBtn     = document.getElementById('tap');
+const loopBtn    = document.getElementById('loop');
+
+let TS = null;              // 每句开始时间（秒），长度 = N
+let OFFSET = 0;             // 全局偏移：t = currentTime - OFFSET
+let TAPPED = new Set();     // 已手工打点的下标
+let audioReady = false, tapMode = false, loopOne = false;
+let manualUntil = 0, rafId = null;
+let actx = null, analyser = null, freqData = null, srcNode = null;
+let levelFrame = 0, lastLevel = '';
+
+/** 低频能量 → --level，驱动当前卡的辉光 */
+function setLevel(v){
+  const s = v.toFixed(3);
+  if (s === lastLevel) return;
+  lastLevel = s;
+  document.documentElement.style.setProperty('--level', s);
+}
+
+const pad2 = n => String(n).padStart(2, '0');
+const fmt = t => !isFinite(t) ? '--:--'
+      : pad2(Math.floor(t / 60)) + ':' + ((t % 60) < 10 ? '0' : '') + (t % 60).toFixed(1);
+
+let toastEl = null, toastTimer = null;
+function toast(msg){
+  if (!toastEl){ toastEl = document.createElement('div'); toastEl.className = 'toast'; document.body.appendChild(toastEl); }
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1700);
+}
+
+/* ---- 时间轴：按词长把整首歌分给 86 句 ---- */
+function autoSpread(){
+  const dur = audio.duration;
+  if (!isFinite(dur) || dur <= 0) return;
+  const lead = dur * 0.055, tail = dur * 0.035;      // 前奏 / 尾奏留白
+  const usable = Math.max(dur - lead - tail, 1);
+  const w = LINES.map(l => l.en.length + 10);        // 长句给更多时间
+  const sum = w.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  TS = w.map(x => { const t = lead + usable * acc / sum; acc += x; return t; });
+}
+
+function lineAt(t){
+  let lo = 0, hi = N - 1, ans = 0;
+  while (lo <= hi){
+    const mid = (lo + hi) >> 1;
+    if (TS[mid] <= t){ ans = mid; lo = mid + 1; } else { hi = mid - 1; }
+  }
+  return ans;
+}
+
+function seekTo(i){
+  if (!audioReady || !TS) return;
+  manualUntil = performance.now() + 350;             // 手动跳转后短暂停跟随
+  try { audio.currentTime = Math.max(0, TS[i] + OFFSET); } catch (e) {}
+}
+
+function saveTimeline(){
+  try {
+    localStorage.setItem('wem.timeline', JSON.stringify({
+      ts: TS, off: OFFSET, tapped: [...TAPPED]
+    }));
+  } catch (e) {}
+}
+
+function loadTimeline(){
+  try {
+    const s = JSON.parse(localStorage.getItem('wem.timeline') || 'null');
+    if (s && Array.isArray(s.ts) && s.ts.length === N){
+      TS = s.ts; OFFSET = s.off || 0; TAPPED = new Set(s.tapped || []);
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+/** 套用内置的 LRCLIB 精确时间轴 */
+function applyBuiltin(msg){
+  TS = BUILTIN.ts.slice(0, N);
+  OFFSET = 0;
+  TAPPED = new Set();
+  saveTimeline(); renderStamps();
+  if (audioReady) seekTo(index);
+  toast(msg || ('已套用内置时间轴 · ' + BUILTIN.label));
+}
+
+/** 时长接近原版就自动升级为精确轴（不会覆盖你手工打过的点） */
+function maybeUpgrade(){
+  if (!audioReady || !TS) return false;
+  if (TAPPED.size > 0) return false;
+  if (Math.abs(audio.duration - BUILTIN.dur) > 6) return false;
+  const same = TS.every((t, i) => Math.abs(t - BUILTIN.ts[i]) < 0.05);
+  if (same) return false;
+  applyBuiltin('检测到原版时长（' + fmt(audio.duration) + '）· 已换用内置精确时间轴');
+  return true;
+}
+
+function renderStamps(){
+  document.querySelectorAll('.tstamp').forEach(el => {
+    const i = +el.dataset.t;
+    if (!TS){ el.textContent = ''; return; }
+    const a = TS[i] + OFFSET;
+    const b = i < N - 1 ? TS[i + 1] + OFFSET : (audioReady ? audio.duration : a + 3);
+    el.textContent = fmt(a) + '–' + fmt(b);
+    el.classList.toggle('tapped', TAPPED.has(i));
+  });
+}
+
+/* ---- 主循环：音频时间 → 当前句 ---- */
+function tick(){
+  rafId = requestAnimationFrame(tick);
+  stepGlyphs();
+  drawSpectrum();
+  if (!playing) setLevel(0);
+  if (!audioReady || !TS) return;
+
+  const t = audio.currentTime - OFFSET;
+
+  if (!tapMode && performance.now() > manualUntil){
+    if (loopOne){                                    // 单句循环：到句尾就跳回句首
+      const end = (index < N - 1 ? TS[index + 1] : audio.duration) - 0.06;
+      if (t > end) seekTo(index);
+    } else {
+      const i = lineAt(t);
+      if (i !== index) setIndex(i, {scroll:true, follow:true});
+    }
+  }
+  if (fillEl && audio.duration) fillEl.style.width = (audio.currentTime / audio.duration * 100) + '%';
+}
+
+function startSync(){ if (!rafId) rafId = requestAnimationFrame(tick); }
+
+/* ---- 载入音频 ---- */
+/** 音频元数据就绪后的统一收尾：时间轴决策 + 频谱 + 起播 */
+function onAudioReady(label){
+  audioReady = true;
+  specCanvas.hidden = false;
+  afileEl.textContent = label;
+  afileEl.classList.add('ok');
+
+  if (!loadTimeline() || !TS || TS.length !== N){
+    if (Math.abs(audio.duration - BUILTIN.dur) < 6){
+      applyBuiltin('原版时长匹配 · 已套用内置精确时间轴（' + BUILTIN.src + '）');
+    } else {
+      autoSpread();
+      toast('已按词长估算时间轴 · 时长与原版差 ' +
+            Math.abs(audio.duration - BUILTIN.dur).toFixed(0) + 's，建议按 T 打点校准');
+    }
+  } else {
+    maybeUpgrade();
+  }
+  buildSpectrum();
+  renderStamps();
+  setIndex(0, {scroll:true});
+  setPlaying(true);
+}
+
+function loadAudioFile(file){
+  audio.src = URL.createObjectURL(file);
+  audio.load();
+  audio.addEventListener('loadedmetadata',
+      () => onAudioReady(file.name + ' · ' + fmt(audio.duration)), {once:true});
+}
+
+/**
+ * 内置音频：构建脚本会把 base64 塞进
+ * <script id="bundledAudio" type="text/plain">…</script>
+ * 这里解成 Blob 再喂给 <audio>，避免超长 data: URI 的解析开销。
+ */
+function loadBundled(el){
+  try {
+    const b64 = (el ? el.textContent : '').replace(/\s+/g, '');
+    if (b64.length < 1000){ setPlaying(true); return; }
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'audio/mpeg' });
+    el.remove();                                   // 立刻释放那几 MB 文本节点
+    audio.src = URL.createObjectURL(blob);
+    audio.load();
+    audio.addEventListener('loadedmetadata',
+        () => onAudioReady('内置音频 · ' + fmt(audio.duration) + ' · ' + Math.round(bytes.length / 1048576 * 10) / 10 + 'MB'),
+        {once:true});
+  } catch (e){
+    toast('内置音频解包失败：' + (e && e.message ? e.message : e));
+    setPlaying(true);
+  }
+}
+
+/* ---- 频谱 ---- */
+function buildSpectrum(){
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!srcNode){
+      srcNode = actx.createMediaElementSource(audio);
+      analyser = actx.createAnalyser();
+      analyser.fftSize = 128;
+      srcNode.connect(analyser);
+      analyser.connect(actx.destination);            // 必须接回扬声器
+    }
+    freqData = new Uint8Array(analyser.frequencyBinCount);
+  } catch (e) { specCanvas.hidden = true; }
+}
+
+function drawSpectrum(){
+  if (!analyser || !freqData || specCanvas.hidden) return;
+  const ctx = specCanvas.getContext('2d');
+  const w = specCanvas.width, h = specCanvas.height;
+  analyser.getByteFrequencyData(freqData);
+  ctx.clearRect(0, 0, w, h);
+  const bars = 40, step = Math.max(1, Math.floor(freqData.length / bars));
+
+  let low = 0;                                   // 低频能量 → 页面辉光
+  for (let i = 1; i < 6; i++) low += freqData[i] || 0;
+  levelFrame++;
+  if (levelFrame % 3 === 0) setLevel(Math.min(1, low / 5 / 170));
+
+  for (let i = 0; i < bars; i++){
+    let v = 0;
+    for (let j = 0; j < step; j++) v = Math.max(v, freqData[i * step + j] || 0);
+    const bh = Math.max(1, v / 255 * h);
+    const g = ctx.createLinearGradient(0, h, 0, h - bh);
+    g.addColorStop(0, '#6ee7ff');
+    g.addColorStop(1, '#ff5aa8');
+    ctx.fillStyle = g;
+    ctx.fillRect(i * (w / bars) + 1, h - bh, w / bars - 2, bh);
+  }
+}
+
+/* ---- 打点校准 ---- */
+function firstUntapped(){
+  for (let i = 0; i < N; i++) if (!TAPPED.has(i)) return i;
+  return N - 1;
+}
+
+function recordTap(){
+  if (!audioReady || !TS){ toast('先载入音频'); return; }
+  const t = Math.max(audio.currentTime - OFFSET, index > 0 ? TS[index - 1] + 0.08 : 0);
+  TS[index] = t;
+  TAPPED.add(index);
+  for (let k = index + 1; k < N; k++){             // 保持单调
+    if (TS[k] < t + 0.001 * (k - index)) TS[k] = t + 0.001 * (k - index);
+  }
+  saveTimeline(); renderStamps();
+  toast('#' + String(index + 1).padStart(2, '0') + ' → ' + fmt(t));
+  if (index < N - 1) setIndex(index + 1, {scroll:true});
+}
+
+function toggleTapMode(){
+  if (!audioReady){ toast('先载入音频'); return; }
+  tapMode = !tapMode;
+  tapBtn.classList.toggle('on', tapMode);
+  if (tapMode){
+    setPlaying(false);
+    const target = firstUntapped();
+    setIndex(target, {scroll:true});
+    seekTo(target);
+    toast('打点模式：播放中，听到该句开头就按 T');
+  } else {
+    saveTimeline();
+    toast('打点完成：已记录 ' + TAPPED.size + ' / ' + N + ' 句，已保存');
+  }
+}
+
+function toggleLoop(){
+  loopOne = !loopOne;
+  loopBtn.classList.toggle('on', loopOne);
+  toast(loopOne ? '单句循环 开' : '单句循环 关');
+}
+
+/* ---- LRC 导入 / 导出 ---- */
+function loadLRC(file){
+  const fr = new FileReader();
+  fr.onload = () => {
+    const text = String(fr.result || '');
+
+    if (/^\s*[{[]/.test(text)){                     // JSON 时间轴
+      try {
+        const j = JSON.parse(text);
+        const arr = Array.isArray(j) ? j : (j.ts || j.timeline);
+        if (Array.isArray(arr) && arr.length >= N){
+          TS = arr.slice(0, N).map(Number);
+          TAPPED = new Set(TS.map((_, i) => i));
+          saveTimeline(); renderStamps();
+          if (audioReady) seekTo(index);
+          toast('已导入 ' + N + ' 个时间点');
+        } else toast('时间点不足（' + (arr ? arr.length : 0) + ' < ' + N + '）');
+      } catch (e) { toast('JSON 解析失败'); }
+      return;
+    }
+
+    const re = /\[(\d+):(\d+(?:[.:]\d+)?)\]/g;
+    const entries = [];
+    text.split(/\r?\n/).forEach(line => {
+      re.lastIndex = 0;
+      let m, t = null;
+      while ((m = re.exec(line)) !== null){
+        t = parseInt(m[1], 10) * 60 + parseFloat(m[2].replace(':', '.'));
+      }
+      if (t === null) return;
+      entries.push({ t, text: line.replace(re, '').trim() });
+    });
+    if (!entries.length){ toast('没有找到 [mm:ss.xx] 时间标签'); return; }
+    entries.sort((a, b) => a.t - b.t);
+
+    TS = alignLRC(entries);                        // 按歌词文本对齐，而不是行号
+    TAPPED = new Set(TS.map((_, i) => i));
+    for (let i = 1; i < N; i++){                   // 保持单调递增
+      if (TS[i] <= TS[i - 1]) TS[i] = TS[i - 1] + 0.3;
+    }
+    OFFSET = 0;
+    saveTimeline(); renderStamps();
+    if (audioReady) seekTo(index);
+    toast('已按文本对齐 ' + entries.length + ' 行 LRC → ' + N + ' 句');
+  };
+  fr.readAsText(file, 'utf-8');
+}
+
+function exportLRC(){
+  if (!TS){ toast('先载入音频或导入 LRC'); return; }
+  const body = LINES.map((l, i) => {
+    const t = Math.max(0, TS[i] + OFFSET);
+    const m = Math.floor(t / 60);
+    const s = (t - m * 60).toFixed(2).padStart(5, '0');
+    return '[' + pad2(m) + ':' + s + ']' + l.en;
+  }).join('\n');
+  const url = URL.createObjectURL(new Blob([body], {type: 'text/plain;charset=utf-8'}));
+  const a = document.createElement('a');
+  a.href = url; a.download = 'world-execute-me.lrc'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('已导出 LRC');
+}
+
+/* ---- 音频事件 ---- */
+audio.addEventListener('error', () => { if (audio.src) toast('音频无法播放（格式或路径问题）'); });
+audio.addEventListener('play',  () => { playing = true;  playBtn.textContent = '❚❚'; });
+audio.addEventListener('pause', () => { playing = false; playBtn.textContent = '▶'; });
+audio.addEventListener('ended', () => {
+  if (loopOne && TS){ seekTo(index); audio.play().catch(() => {}); return; }
+  setPlaying(false);
+});
+
+/* ---- 文件入口：按钮 + 拖拽 ---- */
+document.getElementById('loadBtn').addEventListener('click', () => document.getElementById('audioFile').click());
+document.getElementById('audioFile').addEventListener('change', e => {
+  if (e.target.files[0]) loadAudioFile(e.target.files[0]);
+});
+document.getElementById('lrcBtn').addEventListener('click', () => document.getElementById('lrcFile').click());
+document.getElementById('lrcFile').addEventListener('change', e => {
+  if (e.target.files[0]) loadLRC(e.target.files[0]);
+});
+document.getElementById('expBtn').addEventListener('click', exportLRC);
+document.getElementById('builtinBtn').addEventListener('click', () => {
+  if (TAPPED.size > 0 && TS && !TS.every((t, i) => Math.abs(t - BUILTIN.ts[i]) < 0.05)
+      && !confirm('这会覆盖你手工打点的时间轴，继续？')) return;
+  applyBuiltin();
+});
+
+window.addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('dragging'); });
+window.addEventListener('dragleave', e => { if (e.relatedTarget === null) document.body.classList.remove('dragging'); });
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  document.body.classList.remove('dragging');
+  const files = [...(e.dataTransfer ? e.dataTransfer.files : [])];
+  const audioF = files.find(f => /^audio\//.test(f.type) || /\.(mp3|m4a|aac|ogg|wav|flac|opus)$/i.test(f.name));
+  const textF  = files.find(f => /\.(lrc|txt|json)$/i.test(f.name));
+  if (audioF) loadAudioFile(audioF);
+  else if (textF) loadLRC(textF);
+  else toast('没识别到音频或 LRC 文件');
+});
+
+tapBtn.addEventListener('click', toggleTapMode);
+loopBtn.addEventListener('click', toggleLoop);
+setInterval(() => { if ((audioReady || TS) && !tapMode) renderStamps(); }, 1000);
+
+
+/* ---- 复制 ---- */
+cardsEl.addEventListener('click', e => {
+  const btn = e.target.closest('.copy');
+  if (!btn) return;
+  const code = LINES[+btn.dataset.copy].code;
+  const done = () => { btn.textContent = '已复制'; btn.classList.add('done');
+    setTimeout(() => { btn.textContent = '复制'; btn.classList.remove('done'); }, 1200); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code).then(done).catch(() => fallbackCopy(code, done));
+  } else { fallbackCopy(code, done); }
+});
+function fallbackCopy(text, done){
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) {}
+  document.body.removeChild(ta);
+}
+
+/* ---- 控件 ---- */
+document.getElementById('next').addEventListener('click', () => { setPlaying(false); next(); });
+document.getElementById('prev').addEventListener('click', () => { setPlaying(false); prev(); });
+playBtn.addEventListener('click', () => setPlaying(!playing));
+
+modeBtn.addEventListener('click', () => {
+  stepMode = !stepMode;
+  modeBtn.textContent = stepMode ? '逐句模式' : '全文模式';
+  setIndex(index, {scroll:true});
+});
+
+trackEl.addEventListener('click', e => {
+  const r = trackEl.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+  if (audioReady && audio.duration){
+    audio.currentTime = ratio * audio.duration;      // 有音频：拖动即解码定位
+    manualUntil = performance.now() + 350;
+    return;
+  }
+  setPlaying(false);
+  setIndex(Math.round(ratio * (N - 1)));
+});
+
+document.addEventListener('keydown', e => {
+  const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName);
+  if (typing) return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown'){ e.preventDefault(); setPlaying(false); next(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp'){ e.preventDefault(); setPlaying(false); prev(); }
+  else if (e.key === ' '){ e.preventDefault(); setPlaying(!playing); }
+  else if (e.key === 'Home'){ e.preventDefault(); setPlaying(false); setIndex(0); seekTo(0); }
+  else if (e.key === 'End'){ e.preventDefault(); setPlaying(false); setIndex(N - 1); seekTo(N - 1); }
+  else if (e.key === 't' || e.key === 'T'){ e.preventDefault(); recordTap(); }
+  else if (e.key === 'l' || e.key === 'L'){ e.preventDefault(); toggleLoop(); }
+  else if (e.key === '['){ OFFSET = +(OFFSET - 0.1).toFixed(2); saveTimeline(); renderStamps(); toast('偏移 ' + OFFSET.toFixed(1) + 's'); }
+  else if (e.key === ']'){ OFFSET = +(OFFSET + 0.1).toFixed(2); saveTimeline(); renderStamps(); toast('偏移 ' + OFFSET.toFixed(1) + 's'); }
+});
+
+stage.addEventListener('wheel', () => { if (playing) setPlaying(false); }, {passive:true});
+
+stage.addEventListener('scroll', () => {
+  if (suppress) return;
+  clearTimeout(scrollTimer);
+  scrollTimer = setTimeout(() => {
+    const mid = stage.scrollTop + stage.clientHeight / 2;
+    let best = index, dist = Infinity;
+    cards.forEach((c, k) => {
+      if (c.style.display === 'none') return;
+      const d = Math.abs(c.offsetTop + c.offsetHeight / 2 - mid);
+      if (d < dist){ dist = d; best = k; }
+    });
+    if (best !== index) setIndex(best, {scroll:false});
+  }, 140);
+});
+
+/* =========================================================
+   3.5 动效层
+   ========================================================= */
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const GLYPHS  = '01<>{}[]()/*+-=%$#@!?;:~^&|\\アカサタナハマヤラワ';
+let scrambleHost = null;
+
+/** 歌词解码：未解析的字符在乱码表里滚动，逐个落定 */
+function typeEn(el, text){
+  if (REDUCED){ cancelAnimationFrame(el._raf); el.textContent = text; return; }
+  if (scrambleHost && scrambleHost !== el) cancelAnimationFrame(scrambleHost._raf);
+  scrambleHost = el;
+  cancelAnimationFrame(el._raf);
+
+  const chars = Array.from(text);
+  const PER = 14, HOLD = 170;                 // 每字符间隔 / 解码窗口
+  el.textContent = '';
+  const spans = chars.map(ch => {
+    const s = document.createElement('span');
+    s.className = 'ch';
+    s.textContent = ch === ' ' ? '\u00a0' : GLYPHS[(Math.random() * GLYPHS.length) | 0];
+    el.appendChild(s);
+    return s;
+  });
+
+  const total = (chars.length - 1) * PER + HOLD + 120;
+  const t0 = performance.now();
+  let frame = 0;
+  const step = now => {
+    const dt = now - t0;
+    frame++;
+    for (let i = 0; i < chars.length; i++){
+      const s = spans[i];
+      if (chars[i] === ' '){ s.classList.add('done'); continue; }
+      const start = i * PER;
+      if (dt >= start + HOLD){
+        if (!s.classList.contains('done')){
+          s.classList.remove('live');
+          s.classList.add('done');
+          s.textContent = chars[i];
+        }
+      } else if (dt >= start){
+        if (!s.classList.contains('live')) s.classList.add('live');
+        if (frame % 2 === 0) s.textContent = GLYPHS[(Math.random() * GLYPHS.length) | 0];
+      }
+    }
+    if (dt < total) el._raf = requestAnimationFrame(step);
+    else spans.forEach((s, i) => {
+      s.classList.remove('live');
+      s.classList.add('done');
+      s.textContent = chars[i] === ' ' ? '\u00a0' : chars[i];
+    });
+  };
+  el._raf = requestAnimationFrame(step);
+}
+
+/**
+ * 代码打字机：
+ * 首次激活时把每行代码切成逐字符 span（缓存在 codeEl._chars，只算一次），
+ * 之后每帧把字符从 hide 里放出来，并把"方块光标"推到写指针处。
+ */
+function buildChars(codeEl){
+  if (codeEl._chars) return codeEl._chars;
+  const walker = document.createTreeWalker(codeEl, NodeFilter.SHOW_TEXT, null);
+  const texts = [];
+  let node;
+  while ((node = walker.nextNode())) if (node.nodeValue) texts.push(node);
+
+  const chars = [];
+  texts.forEach(tn => {
+    const frag = document.createDocumentFragment();
+    for (const ch of tn.nodeValue){
+      if (ch === ' ' || ch === '\t'){          // 空格不参与动画，省一半节点
+        frag.appendChild(document.createTextNode(ch));
+        continue;
+      }
+      const s = document.createElement('span');
+      s.className = 'ch hide';
+      s.textContent = ch;
+      frag.appendChild(s);
+      chars.push(s);
+    }
+    tn.parentNode.replaceChild(frag, tn);
+  });
+  codeEl._chars = chars;
+  return chars;
+}
+
+function typeCode(codeEl, charCount){
+  if (!codeEl) return;
+  const chars = buildChars(codeEl);
+  const n = chars.length;
+  cancelAnimationFrame(codeEl._typeRaf);
+
+  if (REDUCED || n === 0){
+    for (const c of chars) c.classList.remove('hide');
+    return;
+  }
+  for (const c of chars) c.classList.add('hide');
+
+  const dur = Math.min(1500, Math.max(650, charCount * 2.2));
+  const t0 = performance.now();
+  let i = 0, head = null;
+
+  const frame = now => {
+    const target = Math.min(n, Math.ceil((now - t0) / dur * n));
+    for (; i < target; i++) chars[i].classList.remove('hide');
+    if (head) head.classList.remove('head');
+    head = null;
+    if (i < n){
+      head = chars[i];
+      head.classList.add('head');
+      codeEl._typeRaf = requestAnimationFrame(frame);
+    }
+  };
+  codeEl._typeRaf = requestAnimationFrame(frame);
+}
+
+/** SVG 自我绘制：描边路径"画"出来，填充图形弹出来，文字浮上来 */
+function animateViz(card){
+  const svg = card.querySelector('.viz svg');
+  if (!svg) return;
+  const shapes = [...svg.querySelectorAll('path,line,polyline,polygon,circle,ellipse,rect')];
+  if (REDUCED){
+    shapes.forEach(el => { if (el._draw){ el._draw.cancel(); el._draw = null; } });
+    return;
+  }
+  const n = shapes.length;
+  const stepMs = n > 60 ? 9 : n > 24 ? 16 : 26;
+
+  shapes.forEach((el, i) => {
+    if (el._draw) el._draw.cancel();
+    if (el._idle) { el._idle.cancel(); el._idle = null; }
+    const delay = i * stepMs;
+
+    let stroked = false, len = 0;
+    try {
+      const cs = getComputedStyle(el);
+      stroked = cs.stroke !== 'none' && (parseFloat(cs.strokeWidth) || 0) > 0;
+      if (stroked) len = el.getTotalLength();
+    } catch (e) { stroked = false; }
+
+    if (stroked && len > 0){
+      const marching = el.dataset.marching === '1' || el.classList.contains('dash');
+      if (marching){ el.dataset.marching = '1'; el.classList.remove('dash'); }
+      el.style.strokeDasharray = len + ' ' + len;
+      el.style.strokeDashoffset = len;
+      const a = el.animate(
+        [{ strokeDashoffset: len }, { strokeDashoffset: 0 }],
+        { duration: 760, delay, easing: 'cubic-bezier(.25,.8,.3,1)', fill: 'both' });
+      a.onfinish = () => {
+        if (marching){
+          el.style.strokeDasharray = '6 7';
+          el.style.strokeDashoffset = '0';
+          el._idle = el.animate(
+            [{ strokeDashoffset: 0 }, { strokeDashoffset: -52 }],
+            { duration: 2600, iterations: Infinity, easing: 'linear' });
+        } else {
+          el.style.strokeDasharray = '';
+          el.style.strokeDashoffset = '';
+        }
+      };
+      el._draw = a;
+    } else if (el.classList.contains('spin') || el.classList.contains('pulse')){
+      el._draw = el.animate([{ opacity: 0 }, { opacity: 1 }],
+        { duration: 420, delay, easing: 'ease-out', fill: 'both' });
+    } else {
+      el._draw = el.animate(
+        [{ opacity: 0, transform: 'scale(.7)' }, { opacity: 1, transform: 'scale(1)' }],
+        { duration: 440, delay, easing: 'cubic-bezier(.2,.9,.25,1.25)', fill: 'both' });
+    }
+  });
+
+  [...svg.querySelectorAll('text')].forEach((el, i) => {
+    if (el._draw) el._draw.cancel();
+    el._draw = el.animate(
+      [{ opacity: 0, transform: 'translateY(7px)' }, { opacity: 1, transform: 'none' }],
+      { duration: 420, delay: 220 + i * 45, easing: 'ease-out', fill: 'both' });
+  });
+}
+
+/* ---- 背景字符场 ---- */
+const bgc  = document.getElementById('bgc');
+const bctx = bgc && bgc.getContext('2d');
+let glyphs = [], gw = 0, gh = 0;
+const DPR = () => Math.min(window.devicePixelRatio || 1, 2);
+
+function spawnGlyph(anywhere){
+  const d = DPR();
+  return {
+    x: Math.random() * gw,
+    y: anywhere ? Math.random() * gh : -20 * d,
+    v: (0.10 + Math.random() * 0.34) * d,
+    size: (9 + Math.random() * 8) * d,
+    a: 0.04 + Math.random() * 0.18,
+    ch: GLYPHS[(Math.random() * GLYPHS.length) | 0],
+    flick: 40 + Math.random() * 260
+  };
+}
+
+function resizeBg(){
+  if (!bctx) return;
+  const d = DPR();
+  gw = bgc.width  = Math.floor(innerWidth  * d);
+  gh = bgc.height = Math.floor(innerHeight * d);
+  bgc.style.width  = innerWidth + 'px';
+  bgc.style.height = innerHeight + 'px';
+  const count = Math.max(28, Math.min(90, Math.floor(innerWidth / 18)));
+  glyphs = Array.from({ length: count }, () => spawnGlyph(true));
+}
+if (bctx){ resizeBg(); window.addEventListener('resize', resizeBg); }
+
+function stepGlyphs(){
+  if (!bctx || REDUCED || gw === 0) return;
+  bctx.clearRect(0, 0, gw, gh);
+  bctx.textBaseline = 'top';
+  for (let i = 0; i < glyphs.length; i++){
+    const g = glyphs[i];
+    g.y += g.v;
+    if (g.y > gh + 24) Object.assign(g, spawnGlyph(false));
+    if (--g.flick < 0){
+      g.flick = 40 + Math.random() * 260;
+      g.ch = GLYPHS[(Math.random() * GLYPHS.length) | 0];
+    }
+    bctx.font = g.size + 'px monospace';
+    bctx.fillStyle = 'rgba(110,231,255,' + g.a.toFixed(3) + ')';
+    bctx.fillText(g.ch, g.x, g.y);
+  }
+}
+
+/* ---- 标题故障脉冲 ---- */
+setInterval(() => {
+  if (REDUCED || document.hidden) return;
+  const h = document.querySelector('h1');
+  if (!h) return;
+  h.classList.remove('glitch');
+  void h.offsetWidth;
+  h.classList.add('glitch');
+}, 9000);
+
+/* ---- 启动 ---- */
+setIndex(0, {scroll:false});
+loadTimeline();
+renderStamps();
+startSync();
+
+const bundledEl = document.getElementById('bundledAudio');
+if (bundledEl && bundledEl.textContent.replace(/\s+/g, '').length > 1000){
+  toast('正在解包内置音频…');
+  setTimeout(() => loadBundled(bundledEl), 40);   // 先让首帧渲染出来
+} else {
+  setPlaying(true);
+}
+</script>
+</body>
+</html>

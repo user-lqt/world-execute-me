@@ -1,0 +1,27 @@
+# 音频：版权归 Mili / 原作者，不进版本库
+*.mp3
+*.m4a
+*.flac
+*.wav
+*.ogg
+*.opus
+*.aac
+*.cue
+*.log
+
+# 本地打包出来的单文件版（含音频，自己用）
+world-execute-me-standalone.html
+*-standalone.html
+
+# 源码里的字体只在构建时用，产物已内嵌
+/src-fonts/
+*.woff
+*.woff2
+
+# 系统 / 编辑器
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
+.idea/
+.vscode/
