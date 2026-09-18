@@ -81,6 +81,9 @@ h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);ve
 #stage::-webkit-scrollbar-thumb{background:rgba(110,231,255,.22);border-radius:9px;border:2px solid transparent;background-clip:content-box}
 #stage::-webkit-scrollbar-thumb:hover{background:rgba(110,231,255,.45);background-clip:content-box}
 
+/* 尾部留白：让最后几张卡也能把顶部滚到滚动区顶端，不被 max-scroll 夹住 */
+#cards::after{content:"";display:block;height:36vh}
+
 .card{
   position:relative;
   display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.34fr);
