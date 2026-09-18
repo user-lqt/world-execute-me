@@ -17,6 +17,14 @@
   --violet:#b48cff;
   --red:#ff4d5e;
   --line:rgba(110,231,255,.14);
+  /* ── 强度引擎 ─────────────────────────────────────────────
+     每句歌词有一个 0–1 的热度（HEAT 数组），--accent 由它算出：
+     hue 193°(青) → 360°(红)，中间依次经过蓝、紫、品红。
+     整站的边框、辉光、标题、进度条、SVG 主色都跟着这句的情绪走。 */
+  --heat: 0;
+  --accent: hsl(calc(193 + var(--heat) * 167) 100% 68%);
+  --accent-dim: hsl(calc(193 + var(--heat) * 167) 100% 68% / .45);
+  --accent-faint: hsl(calc(193 + var(--heat) * 167) 100% 68% / .15);
   /* 拉丁部分用内嵌字体保证处处等宽；中日韩退回系统等宽字（NSimSun 每个汉字恰好 1em 宽） */
   --mono:'WEM Mono','Cascadia Mono','Sarasa Mono SC','更纱黑体 Mono SC',
          'Noto Sans Mono CJK SC','Noto Sans Mono','NSimSun','MS Gothic',
@@ -66,7 +74,7 @@ header{
 h1{margin:0;font-size:clamp(17px,2.1vw,25px);font-weight:600;letter-spacing:.4px;white-space:nowrap}
 h1 .w1{color:var(--violet)}
 h1 .p{color:var(--dim)}
-h1 .w2{color:var(--cyan);text-shadow:0 0 26px rgba(110,231,255,.45)}
+h1 .w2{color:var(--accent);text-shadow:0 0 calc(18px + var(--heat) * 34px) var(--accent-dim)}
 h1 .arg{color:var(--amber)}
 h1 .semi{color:var(--pink)}
 h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);vertical-align:-2px;margin-left:2px;animation:blink 1.05s steps(1) infinite}
@@ -101,8 +109,9 @@ h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);ve
 }
 .card.past{opacity:.2;filter:saturate(.45)}
 .card.active{
-  border-color:rgba(110,231,255,.42);
-  box-shadow:0 0 0 1px rgba(110,231,255,.10),0 22px 70px -26px rgba(110,231,255,.45);
+  border-color:var(--accent-dim);
+  box-shadow:0 0 0 1px var(--accent-faint),
+             0 22px calc(70px + var(--heat) * 46px) -26px var(--accent-dim);
 }
 .idx{position:absolute;top:11px;left:16px;font-size:11.5px;letter-spacing:1.4px;color:#3f4d66}
 .idx b{color:var(--cyan);font-weight:500}
@@ -129,9 +138,9 @@ h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);ve
 .viz svg{display:block;width:100%;height:auto}
 .t-dim{fill:#5c6a82;font:11px var(--mono)}
 .f-dim{fill:#33455f}
-.f-cyan{fill:var(--cyan)} .f-pink{fill:var(--pink)} .f-amber{fill:var(--amber)}
+.f-cyan{fill:var(--accent)} .f-pink{fill:var(--pink)} .f-amber{fill:var(--amber)}
 .f-violet{fill:var(--violet)} .f-green{fill:var(--green)} .f-red{fill:var(--red)}
-.s-cyan{stroke:var(--cyan)} .s-pink{stroke:var(--pink)} .s-amber{stroke:var(--amber)}
+.s-cyan{stroke:var(--accent)} .s-pink{stroke:var(--pink)} .s-amber{stroke:var(--amber)}
 .s-violet{stroke:var(--violet)} .s-green{stroke:var(--green)} .s-red{stroke:var(--red)} .s-dim{stroke:#33455f}
 .pulse{animation:pulse 2.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:.22}50%{opacity:1}}
@@ -229,12 +238,39 @@ pre.code .ch.head{
   100%{opacity:0;transform:translateY(100%)}
 }
 
-/* 音频电平驱动的辉光 */
+/* 音频电平驱动的辉光（颜色跟随热度） */
 .card::after{
   content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;opacity:0;transition:opacity .5s;
-  background:radial-gradient(120% 90% at 22% -10%,rgba(110,231,255,.20),transparent 62%);
+  background:radial-gradient(120% 90% at 22% -10%,var(--accent-faint),transparent 62%);
 }
 .card.active::after{opacity:calc(.45 + var(--level,0) * .55);will-change:opacity}
+
+/* ── 转场特效层：换句时的一道冲击 ── */
+#fx{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden}
+.fx-flash{
+  position:absolute;inset:0;opacity:0;
+  background:radial-gradient(62% 58% at 50% 44%,var(--accent-dim),transparent 72%);
+}
+.fx-whip{
+  position:absolute;top:0;bottom:0;left:0;width:32%;opacity:0;filter:blur(4px);
+  background:linear-gradient(90deg,transparent,var(--accent-dim) 42%,rgba(255,255,255,.22) 50%,var(--accent-dim) 58%,transparent);
+}
+/* CRT 撕裂条：用 steps 缓动做出数字故障的硬跳 */
+.fx-bars{
+  position:absolute;inset:-12% 0;opacity:0;
+  background:repeating-linear-gradient(180deg,
+    transparent 0 7px, var(--accent-dim) 7px 8px, transparent 8px 24px);
+}
+/* 网格：模拟启动时铺开 */
+.fx-grid{
+  position:absolute;inset:0;opacity:0;
+  background-image:
+    linear-gradient(var(--accent-faint) 1px,transparent 1px),
+    linear-gradient(90deg,var(--accent-faint) 1px,transparent 1px);
+  background-size:46px 46px;
+  -webkit-mask-image:radial-gradient(closest-side at 50% 48%,#000,transparent 92%);
+          mask-image:radial-gradient(closest-side at 50% 48%,#000,transparent 92%);
+}
 
 /* 非当前卡冻结全部 SVG 动画（脉冲 / 旋转 / 流动虚线，全页合计近千个元素），
    切回当前卡时自动从暂停处继续 */
@@ -332,10 +368,13 @@ footer{
 }
 .btn:hover{background:rgba(110,231,255,.14);border-color:rgba(110,231,255,.55);color:#fff;box-shadow:0 0 18px -4px rgba(110,231,255,.6)}
 .btn.primary{color:var(--cyan);border-color:rgba(110,231,255,.45);min-width:56px}
-.track{flex:1 1 220px;height:6px;border-radius:99px;cursor:pointer;position:relative;background:rgba(255,255,255,.07);overflow:hidden;min-width:120px}
+.track{flex:1 1 220px;height:9px;border-radius:99px;cursor:pointer;position:relative;background:rgba(255,255,255,.06);overflow:hidden;min-width:120px}
+/* 整首歌的情绪曲线画在进度条里：一眼看到哪里是高潮 */
+.heatcurve{position:absolute;inset:0;width:100%;height:100%;opacity:.5}
+.heatcurve polyline{fill:none;stroke:var(--accent);stroke-width:1.4;vector-effect:non-scaling-stroke}
 .fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:99px;
-  background:linear-gradient(90deg,var(--cyan),var(--violet),var(--pink));
-  box-shadow:0 0 14px rgba(110,231,255,.7);transition:width .3s ease}
+  background:linear-gradient(90deg,var(--accent),var(--violet),var(--pink));
+  box-shadow:0 0 14px var(--accent-dim);transition:width .3s ease}
 .counter{font-size:12.5px;color:var(--dim);letter-spacing:1px;min-width:78px;text-align:center}
 .counter b{color:var(--cyan);font-weight:500}
 .hint{font-size:11.5px;color:#3a465c;letter-spacing:.6px}
@@ -375,11 +414,13 @@ footer{
 
 <main id="stage"><div id="cards"></div></main>
 
+<div id="fx" aria-hidden="true"><i class="fx-flash"></i><i class="fx-whip"></i><i class="fx-bars"></i><i class="fx-grid"></i></div>
+
 <footer>
   <button class="btn" id="prev" aria-label="上一句">◀◀</button>
   <button class="btn primary" id="play" aria-label="播放或暂停">▶</button>
   <button class="btn" id="next" aria-label="下一句">▶▶</button>
-  <div class="track" id="track" role="slider" aria-label="进度"><div class="fill" id="fill"></div></div>
+  <div class="track" id="track" role="slider" aria-label="进度"><svg class="heatcurve" id="heatcurve" viewBox="0 0 86 20" preserveAspectRatio="none"><polyline id="heatline" points=""/></svg><div class="fill" id="fill"></div></div>
   <div class="counter"><b id="cur">01</b> / <span id="tot">00</span></div>
   <button class="btn" id="mode">逐句模式</button>
   <button class="btn" id="tap">打点</button>
@@ -2082,6 +2123,172 @@ function alignLRC(entries){
 }
 
 /* =========================================================
+   2.6 情绪曲线：每句一个 0–1 的热度
+   驱动 --heat → --accent（青→蓝→紫→品红→红），影响边框、辉光、
+   标题、进度条、SVG 主色、背景字符场，以及换句时的冲击强度。
+   ========================================================= */
+const HEAT = [
+  0.14,0.15,0.16,0.18,0.20,0.22,0.25,0.28,   // 01-08 通电 / 初始化
+  0.32,0.34,0.36,0.38,0.40,0.42,0.44,0.46,   // 09-16 点·圆·正弦·无穷
+  0.48,0.50,0.52,0.54,0.56,0.58,0.60,0.62,   // 17-24 电流·时空·成为一体
+  0.64,0.66,0.68,0.70,0.72,0.74,0.76,0.78,   // 25-32 刺激·满足·执行
+  0.54,0.56,0.58,0.60,0.57,0.59,0.62,0.65,   // 33-40 茄子·番茄·花猫·神（俏皮段回落）
+  0.68,0.70,0.72,0.74,0.76,0.78,0.80,0.82,   // 41-48 性别·角色·恍惚
+  0.84,0.86,0.88,0.90,0.92,0.90,0.88,0.86,   // 49-56 振动·完全·你走了
+  0.84,0.82,0.80,0.84,0.86,0.90,0.93,0.96,   // 57-64 隔离·碎片·非法参数
+  1.00,1.00,1.00,0.98,1.00,0.55,0.62,0.66,   // 65-72 死刑×12（高潮）→ 骤静
+  0.72,0.70,0.78,0.72,0.68,0.60,0.64,0.68,   // 73-80 唯一执行·回来·被困·学习
+  0.72,0.76,0.82,0.88,0.95,1.00              // 81-86 爱·自由·最后的 EXECUTION
+];
+
+/* 幕间：这些句子不做普通切换，而是放一次完整的场景转场（key 是句号，1 起） */
+const ACT_BREAKS = {
+  8:  'boot',      // And let's begin the SIMULATION —— 装载结束，模拟开始（后接 13 秒前奏）
+  20: 'shock',     // So dizzy so dizzy
+  32: 'cage',      // In this strange strange SIMULATION
+  48: 'trance',    // The trance the trance
+  64: 'doom',      // You have made some ILLEGAL ARGUMENTS —— 冲向高潮
+  69: 'silence',   // EXECUTION —— 高潮收束，骤静
+  86: 'final'      // 最后一声 EXECUTION
+};
+
+/* =========================================================
+   2.7 转场特效：每句一次冲击，幕间一次场景切换
+   （放在渲染层之前，函数声明会提升，setIndex 里直接调用）
+   ========================================================= */
+/* 延迟取 DOM，保持这一层只有纯逻辑（也便于离线校验数据） */
+let fxEls = null;
+function fx(){
+  if (!fxEls) fxEls = {
+    flash: document.querySelector('.fx-flash'),
+    whip:  document.querySelector('.fx-whip'),
+    bars:  document.querySelector('.fx-bars'),
+    grid:  document.querySelector('.fx-grid')
+  };
+  return fxEls;
+}
+
+/** 普通换句：一次与热度成正比的冲击（胶片过片的感觉） */
+function fxPunch(heat, delta){
+  if (REDUCED) return;
+  const F = fx();
+  if (!F.flash) return;
+  const power = Math.min(1, 0.16 + heat * 0.5 + Math.abs(delta || 0) * 1.6);
+  F.flash.animate(
+    [{ opacity: 0 }, { opacity: power * 0.4, offset: 0.12 }, { opacity: 0 }],
+    { duration: 360 + heat * 280, easing: 'ease-out' });
+  F.whip.animate(
+    [{ transform: 'translateX(-45%)', opacity: 0 },
+     { transform: 'translateX(25%)', opacity: power * 0.8, offset: 0.32 },
+     { transform: 'translateX(310%)', opacity: 0 }],
+    { duration: 400 + heat * 260, easing: 'cubic-bezier(.3,0,.2,1)' });
+}
+
+/** 幕间：整屏转场。不同幕有不同编排 */
+function sceneFx(kind, heat){
+  if (REDUCED) return;
+  const F = fx();
+  if (!F.flash) return;
+  const D = { boot: 1700, shock: 900, cage: 1100, trance: 1300,
+              doom: 1000, silence: 1400, final: 1500 }[kind] || 800;
+
+  fxPunch(heat, 0.4);
+
+  if (kind === 'boot'){
+    // 系统上电：先横向撕裂，再铺开网格，最后一道扫描线压过去
+    F.bars.animate([
+      { opacity: 0,    transform: 'translateY(-5%) scaleY(1)' },
+      { opacity: .9,   transform: 'translateY(0) scaleY(1.04)', offset: .10 },
+      { opacity: .12,  transform: 'translateY(0)',              offset: .28 },
+      { opacity: .8,   transform: 'translateY(0) scaleY(.975)', offset: .42 },
+      { opacity: .18,  transform: 'translateY(0)',              offset: .56 },
+      { opacity: .55,  transform: 'translateY(0)',              offset: .68 },
+      { opacity: 0,    transform: 'translateY(3%) scaleY(1)' }
+    ], { duration: D * 0.72, easing: 'steps(1, end)' });
+
+    F.grid.animate([
+      { opacity: 0,   transform: 'scale(1.08)' },
+      { opacity: .95, transform: 'scale(1)',   offset: .22 },
+      { opacity: .55, transform: 'scale(1)',   offset: .62 },
+      { opacity: 0,   transform: 'scale(.97)' }
+    ], { duration: D, easing: 'cubic-bezier(.2,.8,.3,1)' });
+  }
+
+  if (kind === 'shock'){
+    F.bars.animate([
+      { opacity: 0,  transform: 'translateY(0) scaleY(1)' },
+      { opacity: .8, transform: 'translateY(0) scaleY(1.06)', offset: .2 },
+      { opacity: 0,  transform: 'translateY(0)' }
+    ], { duration: D, easing: 'steps(2, end)' });
+  }
+
+  if (kind === 'cage'){
+    // 一根根铁栏落下来
+    F.bars.animate([
+      { opacity: 0,   transform: 'scaleY(.2)', transformOrigin: 'top' },
+      { opacity: .85, transform: 'scaleY(1)',  transformOrigin: 'top', offset: .35 },
+      { opacity: 0,   transform: 'scaleY(1)',  transformOrigin: 'top' }
+    ], { duration: D, easing: 'cubic-bezier(.2,1,.3,1)' });
+  }
+
+  if (kind === 'trance'){
+    F.grid.animate([
+      { opacity: 0,   transform: 'rotate(0deg) scale(1.4)' },
+      { opacity: .8,  transform: 'rotate(-6deg) scale(1)',  offset: .3 },
+      { opacity: 0,   transform: 'rotate(-14deg) scale(.94)' }
+    ], { duration: D, easing: 'ease-in-out' });
+  }
+
+  if (kind === 'doom'){
+    // 冲向高潮：三次越来越强的红色脉动
+    F.flash.animate([
+      { opacity: 0 }, { opacity: .35, offset: .1 }, { opacity: .05, offset: .25 },
+      { opacity: .55, offset: .4 }, { opacity: .1, offset: .55 },
+      { opacity: .8,  offset: .72 }, { opacity: 0 }
+    ], { duration: D, easing: 'ease-in' });
+  }
+
+  if (kind === 'silence'){
+    // 高潮收束：一道白闪之后迅速安静下来
+    F.flash.animate([
+      { opacity: .95 }, { opacity: .75, offset: .12 }, { opacity: 0 }
+    ], { duration: D * 0.55, easing: 'cubic-bezier(.1,.9,.2,1)' });
+    F.whip.animate([
+      { transform: 'translateX(240%)', opacity: .9 },
+      { transform: 'translateX(-60%)', opacity: 0 }
+    ], { duration: D, easing: 'cubic-bezier(.4,0,.2,1)' });
+  }
+
+  if (kind === 'final'){
+    F.flash.animate([
+      { opacity: 0 }, { opacity: 1, offset: .08 }, { opacity: .15, offset: .3 },
+      { opacity: .9, offset: .46 }, { opacity: 0 }
+    ], { duration: D, easing: 'ease-out' });
+    F.bars.animate([
+      { opacity: 0,  transform: 'translateY(0) scaleY(1)' },
+      { opacity: .9, transform: 'translateY(0) scaleY(1.1)', offset: .16 },
+      { opacity: 0,  transform: 'translateY(0) scaleY(1)' }
+    ], { duration: D, easing: 'steps(3, end)' });
+  }
+}
+
+/** 卡片入场：热度越高，推进感越强 */
+function cardEnter(el, heat, big){
+  if (REDUCED) return;
+  const from = big ? 'translateY(46px) scale(.955)' : 'translateY(18px) scale(.992)';
+  el.animate([{ opacity: big ? 0 : .35, transform: from }, { opacity: 1, transform: 'none' }],
+             { duration: big ? 820 : 420, easing: 'cubic-bezier(.16,.9,.24,1)' });
+  if (heat > 0.88 && !big){          // 高潮段落每句带一下轻微震动
+    el.animate([
+      { transform: 'translate(0,0)' },
+      { transform: 'translate(' + (-4 * heat).toFixed(1) + 'px,' + (2 * heat).toFixed(1) + 'px)' },
+      { transform: 'translate(' + (3 * heat).toFixed(1) + 'px,' + (-2 * heat).toFixed(1) + 'px)' },
+      { transform: 'translate(0,0)' }
+    ], { duration: 150, delay: 120, iterations: 2, easing: 'linear' });
+  }
+}
+
+/* =========================================================
    3. 渲染与交互
    ========================================================= */
 const cardsEl = document.getElementById('cards');
@@ -2140,8 +2347,11 @@ cards.forEach(card => {
 
 function setIndex(i, opts){
   opts = opts || {};
+  const prevIdx = index;
   i = Math.max(0, Math.min(N - 1, i));
   index = i;
+  const heat = HEAT[i] || 0;
+  const prevHeat = HEAT[prevIdx] || 0;
 
   cards.forEach((c, k) => {
     c.classList.toggle('active', k === i);
@@ -2154,7 +2364,18 @@ function setIndex(i, opts){
   if (lastActiveCard && lastActiveCard !== active && lastActiveCard._idles)
     for (const a of lastActiveCard._idles) a.pause();
   if (active._idles) for (const a of active._idles) a.play();
+  setLevelOn(active);                       // --level 挂到当前卡上，避免全文档重算
   lastActiveCard = active;
+
+  // 情绪曲线 → 整站配色 / 转场强度
+  document.documentElement.style.setProperty('--heat', heat.toFixed(2));
+  setBgHue(heat);
+  setSpecGrad(heat);
+  const kind = ACT_BREAKS[i + 1];
+  if (kind) sceneFx(kind, heat);
+  else if (opts.scroll !== false || i !== prevIdx) fxPunch(heat, heat - prevHeat);
+  cardEnter(active, heat, !!kind);
+
   typeEn(active.querySelector('.en'), LINES[i].en);
 
   const preEl = active.querySelector('pre.code');
@@ -2236,13 +2457,39 @@ let audioReady = false, tapMode = false, loopOne = false;
 let manualUntil = 0, rafId = null;
 let actx = null, analyser = null, freqData = null, srcNode = null;
 let levelFrame = 0, lastLevel = '', specGrad = null, spectrumDirty = false;
+let bgHue = 193;
+
+/** --level 只写在当前卡上：写在 :root 会让全文档每几帧重算一次样式 */
+function setLevelOn(el){
+  if (!el) return;
+  lastLevel = '';
+  el.style.setProperty('--level', '0');
+  levelHost = el;
+}
+let levelHost = null;
+
+/** 背景字符场的主色跟着热度走 */
+function setBgHue(heat){
+  bgHue = 193 + heat * 167;
+  glyphHeat = 1 + heat * 1.6;             // 越到高潮，字符落得越快
+}
+let glyphHeat = 1;
 
 /** 低频能量 → --level，驱动当前卡的辉光 */
 function setLevel(v){
   const s = v.toFixed(3);
   if (s === lastLevel) return;
   lastLevel = s;
-  document.documentElement.style.setProperty('--level', s);
+  (levelHost || document.documentElement).style.setProperty('--level', s);
+}
+
+/** 频谱柱状图的渐变随热度重建（只在换句时，不是每帧） */
+function setSpecGrad(heat){
+  const ctx = specCanvas.getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, 0, specCanvas.height);
+  g.addColorStop(0, 'hsl(' + (193 + heat * 167) + ' 100% 72%)');
+  g.addColorStop(1, 'hsl(' + (193 + heat * 167) + ' 100% 48% / .55)');
+  specGrad = g;
 }
 
 const pad2 = n => String(n).padStart(2, '0');
@@ -2462,12 +2709,7 @@ function drawSpectrum(){
   if (!playing){ if (spectrumDirty){ clearSpectrum(); spectrumDirty = false; } return; }
   spectrumDirty = true;
 
-  if (!specGrad){                                   // 渐变只建一次，不逐柱逐帧新建
-    const g = specCanvas.getContext('2d').createLinearGradient(0, 0, 0, specCanvas.height);
-    g.addColorStop(0, '#ff5aa8');
-    g.addColorStop(1, '#6ee7ff');
-    specGrad = g;
-  }
+  if (!specGrad) setSpecGrad(0);
   const ctx = specCanvas.getContext('2d');
   const w = specCanvas.width, h = specCanvas.height;
   analyser.getByteFrequencyData(freqData);
@@ -2990,13 +3232,13 @@ function stepGlyphs(){
   bctx.font = GLYPH_FONT;
   for (let i = 0; i < glyphs.length; i++){
     const g = glyphs[i];
-    g.y += g.v;
+    g.y += g.v * glyphHeat;
     if (g.y > gh + 24) Object.assign(g, spawnGlyph(false));
     if (--g.flick < 0){
       g.flick = 60 + Math.random() * 320;
       g.ch = GLYPHS[(Math.random() * GLYPHS.length) | 0];
     }
-    bctx.fillStyle = 'rgba(110,231,255,' + g.a.toFixed(3) + ')';
+    bctx.fillStyle = 'hsla(' + bgHue.toFixed(0) + ',100%,70%,' + g.a.toFixed(3) + ')';
     bctx.fillText(g.ch, g.x, g.y);
   }
 }
@@ -3012,6 +3254,14 @@ setInterval(() => {
 }, 9000);
 
 /* ---- 启动 ---- */
+/* 把 86 句的情绪曲线画进进度条，一眼看到整首歌的起伏和高潮位置 */
+(function drawHeatCurve(){
+  const line = document.getElementById('heatline');
+  if (!line) return;
+  if (HEAT.length !== N) HEAT.length = N;
+  const pts = HEAT.map((h, i) => (i + 0.5).toFixed(1) + ',' + (19 - h * 16).toFixed(1));
+  line.setAttribute('points', pts.join(' '));
+})();
 /* 支持 ?n=34 直接跳到第 34 句，便于分享某一句 */
 const qLine = parseInt(new URLSearchParams(location.search).get('n') || '', 10);
 const startLine = Number.isFinite(qLine) ? Math.min(N - 1, Math.max(0, qLine - 1)) : 0;
