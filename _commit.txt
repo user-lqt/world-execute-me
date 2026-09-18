@@ -1,0 +1,25 @@
+为重复出现的歌词配上各自的画面
+
+同一个图形被反复套用，语义还对不上：
+  · switch（AC⇄DC 电流图）用了 6 次，其中 4 次落在「切换性别 / F→M /
+    切换角色 / S→M」上 —— 跟歌词毫无关系
+  · void（写着 null 的空点阵）用了 15 次，全是 If I can / Then I can /
+    You have left 这些连接句
+  · 三张连续的 EXECUTION 卡片画面完全相同
+
+新增 16 个专用生成器，图形总数从 30 提到 47：
+  gender ♂⇄♀ / role S⇄M 链条 / cond 条件菱形 / probe 轮询 5 连击 /
+  salvo 齐射 X 方阵 / only 环中唯一 / lovenote 结巴 token / qa 问号 /
+  checklist 对勾 / curve 抛物线 / undo 回溯箭头 / heartcage 笼中之爱 /
+  gate 门缝 / maybe 虚线环 / eggplant 茄子 / tomato 番茄 /
+  blind 划掉的眼 / doodle 随手一划 / error 异常三角
+
+关键手法：所有生成器都能拿到行号，同一名字在不同行呈现不同相位。
+  · probe     第 53-57 句依次点亮第 1…5 个探测环，标注 empty × 1…5
+  · salvo     第 65/66/67 句依次画出 4 / 8 / 12 个 X（EXECUTION × 4/8/12）
+  · cond      TRUE 分支按行号左右交替
+  · fragments 被抹掉的碎片按行号轮换
+  · maybe     亮起的环按行号轮换
+
+顺带停用了 void，页面里不再出现 null 字样；修掉一处命名冲突
+（新写的 VIZ.power 会覆盖第 01 句的电源线图形，已改名 VIZ.role）。

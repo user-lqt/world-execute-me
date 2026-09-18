@@ -90,7 +90,7 @@ h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);ve
 
 .card{
   position:relative;
-  display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.34fr);
+  display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.28fr);
   gap:26px;
   max-width:1340px;margin:0 auto 28px;padding:28px 26px 24px;
   border:1px solid var(--line);border-radius:16px;
@@ -117,6 +117,7 @@ h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);ve
 .en{
   font-size:clamp(19px,2.3vw,31px);line-height:1.36;
   margin:26px 0 9px;color:#eaf2ff;font-weight:600;letter-spacing:.2px;
+  overflow-wrap:anywhere;                    /* 长句正常折行，超长单词也不至于溢出 */
   text-shadow:0 0 30px rgba(110,231,255,.16);
 }
 .zh{margin:0 0 18px;font-size:var(--fs-body);color:var(--dim);line-height:1.85;letter-spacing:.5px}
@@ -549,12 +550,7 @@ const VIZ = {
       + '<path d="M176 90 h48 m-10 -8 l10 8 l-10 8" fill="none" class="s-amber" stroke-width="1.6"/>';
   },
   void(){
-    let s='';
-    for(let i=0;i<9;i++) for(let j=0;j<4;j++){
-      s += '<circle cx="'+(40+i*40)+'" cy="'+(34+j*38)+'" r="1.5" class="f-dim" opacity=".28"/>';
-    }
-    return s + '<circle cx="200" cy="90" r="70" fill="none" class="s-dim" stroke-width="1" stroke-dasharray="3 9"/>'
-      + '<text x="200" y="96" class="t-dim" text-anchor="middle">null</text>';
+    return VIZ.doodle(3);        // 已停用，保留以防有旧数据引用；不再渲染 null 字样
   },
   spin(){
     const p=[];
@@ -652,11 +648,16 @@ const VIZ = {
     }
     return s + '<text x="52" y="172" class="t-dim">ISOLATION_SERIALIZABLE</text>';
   },
-  fragments(){
+  fragments(i){
     const f=[[54,40,26],[120,110,16],[176,52,20],[248,124,14],[300,44,22],[336,110,18],[92,74,12],[212,88,10],[280,80,12]];
     let s='';
-    f.forEach((q,i)=>{
-      s += '<rect x="'+q[0]+'" y="'+q[1]+'" width="'+q[2]+'" height="'+q[2]+'" rx="2" fill="none" class="s-dim" stroke-width="1.2" opacity=".55" transform="rotate('+((i*17)%40-20)+' '+q[0]+' '+q[1]+')"/>';
+    f.forEach((q,k)=>{
+      // 按行号轮换“被抹掉”的碎片，避免相邻几张图一模一样
+      const erased = ((k + (i || 0)) % 4) === 0;
+      s += '<rect x="'+q[0]+'" y="'+q[1]+'" width="'+q[2]+'" height="'+q[2]+'" rx="2" fill="none" class="'
+         + (erased ? 's-pink' : 's-dim') + '" stroke-width="1.2" opacity="' + (erased ? '.9' : '.5')
+         + '"' + (erased ? ' stroke-dasharray="3 3"' : '')
+         + ' transform="rotate('+((k*17)%40-20)+' '+q[0]+' '+q[1]+')"/>';
     });
     return s + '<path d="M40 160 L360 24" class="s-pink dash" stroke-width="1.6"/>';
   },
@@ -670,6 +671,232 @@ const VIZ = {
     return s + '<text x="28" y="30" class="t-dim">EIN DOS TROIS NE FEM LIU</text>';
   }
 };
+/* ===== 追加：把被过度复用的意象拆开 =====
+   每个生成器都能拿到行号 i，同一个名字在不同行也会呈现不同相位，
+   避免连续几张卡长得一模一样。 */
+
+/* ♂ ⇄ ♀ —— 切换性别 */
+VIZ.gender = () => {
+  return '<circle cx="132" cy="70" r="30" fill="none" class="s-cyan" stroke-width="2.4"/>'
+    + '<line x1="153" y1="49" x2="184" y2="18" class="s-cyan" stroke-width="2.4"/>'
+    + '<path d="M170 16 h16 v16" fill="none" class="s-cyan" stroke-width="2.4"/>'
+    + '<text x="132" y="77" class="t-dim" text-anchor="middle" style="font-size:15px">M</text>'
+    + '<circle cx="268" cy="78" r="30" fill="none" class="s-pink" stroke-width="2.4"/>'
+    + '<line x1="268" y1="108" x2="268" y2="146" class="s-pink" stroke-width="2.4"/>'
+    + '<line x1="248" y1="128" x2="288" y2="128" class="s-pink" stroke-width="2.4"/>'
+    + '<text x="268" y="85" class="t-dim" text-anchor="middle" style="font-size:15px">F</text>'
+    + '<path d="M186 112 h28 m-9 -8 l9 8 l-9 8" fill="none" class="s-amber" stroke-width="1.8"/>'
+    + '<text x="132" y="172" class="t-dim" text-anchor="middle">chromosome().swap()</text>'
+    + '<text x="268" y="172" class="t-dim" text-anchor="middle">phenotype().rebuild()</text>';
+};
+
+/* S ⇄ M —— 切换角色（链条 + 双向箭头）。注意别叫 power，
+   那会覆盖上面第 01 句的“电源线”图形 */
+VIZ.role = () => {
+  let s = '';
+  for (let k = 0; k < 5; k++){
+    s += '<ellipse cx="' + (124 + k * 38) + '" cy="112" rx="17" ry="10" fill="none" class="s-violet" stroke-width="2"/>';
+  }
+  return s
+    + '<circle cx="92" cy="70" r="27" fill="none" class="s-cyan" stroke-width="2.4"/>'
+    + '<text x="92" y="78" class="t-dim" text-anchor="middle" style="font-size:17px">S</text>'
+    + '<circle cx="308" cy="70" r="27" fill="none" class="s-pink" stroke-width="2.4"/>'
+    + '<text x="308" y="78" class="t-dim" text-anchor="middle" style="font-size:17px">M</text>'
+    + '<path d="M130 42 h140" class="s-amber" stroke-width="1.6" fill="none"/>'
+    + '<path d="M260 34 l10 8 l-10 8" fill="none" class="s-amber" stroke-width="1.6"/>'
+    + '<path d="M140 50 l-10 -8 l10 -8" fill="none" class="s-amber" stroke-width="1.6"/>'
+    + '<text x="200" y="172" class="t-dim" text-anchor="middle">role.switchTo(inverse())</text>';
+};
+
+/* if / then —— 条件判定，TRUE 分支按行号左右交替 */
+VIZ.cond = (i) => {
+  const flip = ((i || 0) % 2) === 0;
+  const L = flip ? 's-pink pulse' : 's-dim';
+  const R = flip ? 's-dim' : 's-pink pulse';
+  return '<path d="M200 16 L266 60 L200 104 L134 60 Z" fill="rgba(110,231,255,.06)" class="s-cyan" stroke-width="2"/>'
+    + '<text x="200" y="67" class="t-dim" text-anchor="middle" style="font-size:16px">?</text>'
+    + '<path d="M200 104 v14 H104 v16" fill="none" class="' + L + '" stroke-width="2"/>'
+    + '<path d="M200 104 v14 H296 v16" fill="none" class="' + R + '" stroke-width="2"/>'
+    + '<text x="104" y="150" class="t-dim" text-anchor="middle">' + (flip ? 'YES' : 'no') + '</text>'
+    + '<text x="296" y="150" class="t-dim" text-anchor="middle">' + (flip ? 'no' : 'YES') + '</text>'
+    + '<rect x="72" y="158" width="64" height="6" rx="3" class="f-cyan" opacity="' + (flip ? 1 : .22) + '"/>'
+    + '<rect x="264" y="158" width="64" height="6" rx="3" class="f-pink" opacity="' + (flip ? .22 : 1) + '"/>';
+};
+
+/* 轮询：第 k 次探测 —— 5 连击，逐个点亮 */
+VIZ.probe = (i) => {
+  const k = Math.max(0, Math.min(4, (i || 0) - 52));
+  let s = '';
+  for (let j = 0; j < 5; j++){
+    const x = 68 + j * 66;
+    s += '<circle cx="' + x + '" cy="82" r="14" fill="none" stroke-width="2" class="'
+       + (j === k ? 's-pink pulse' : 's-dim') + '"/>';
+    s += '<line x1="' + x + '" y1="96" x2="' + x + '" y2="126" stroke-width="2" class="'
+       + (j <= k ? 's-cyan' : 's-dim') + '"/>';
+  }
+  return '<text x="68" y="42" class="t-dim">channel.tryReceive()</text>' + s
+    + '<text x="200" y="160" class="t-dim" text-anchor="middle">empty × ' + (k + 1) + '</text>';
+};
+
+/* 齐射：按行号递增的 X 方阵（1×4 → 2×4 → 3×4） */
+VIZ.salvo = (i) => {
+  const rows = Math.max(1, Math.min(3, (i || 64) - 63));
+  let s = '';
+  for (let r = 0; r < rows; r++){
+    for (let c = 0; c < 4; c++){
+      const x = 118 + c * 56, y = 42 + r * 32;
+      s += '<path d="M' + (x - 11) + ' ' + (y - 11) + ' L' + (x + 11) + ' ' + (y + 11)
+         + ' M' + (x + 11) + ' ' + (y - 11) + ' L' + (x - 11) + ' ' + (y + 11)
+         + '" class="s-red" stroke-width="3" stroke-linecap="round" opacity="'
+         + (0.45 + r * 0.28).toFixed(2) + '"/>';
+    }
+  }
+  return s + '<text x="200" y="166" class="t-dim" text-anchor="middle">EXECUTION × ' + (rows * 4) + '</text>';
+};
+
+/* 唯一的执行：同心环里只有一个 X */
+VIZ.only = () => {
+  let s = '';
+  for (let j = 0; j < 3; j++){
+    s += '<circle cx="200" cy="88" r="' + (34 + j * 20) + '" fill="none" class="s-red pulse" stroke-width="1.4" opacity="'
+       + (0.9 - j * 0.25) + '" style="animation-delay:' + (j * .4) + 's"/>';
+  }
+  return s
+    + '<path d="M188 76 L212 100 M212 76 L188 100" class="s-red" stroke-width="5" stroke-linecap="round"/>'
+    + '<text x="200" y="172" class="t-dim" text-anchor="middle">your.only(EXECUTION)</text>';
+};
+
+/* 结巴的 token：LO-O-OVE */
+VIZ.lovenote = () => {
+  let s = '';
+  for (let j = 0; j < 3; j++){
+    const y = 50 + j * 34;
+    s += '<text x="52" y="' + y + '" class="t-dim" style="font-size:16px">LO-O-OVE</text>';
+    s += '<line x1="52" y1="' + (y + 8) + '" x2="' + (168 + j * 52) + '" y2="' + (y + 8)
+       + '" class="s-pink" stroke-width="2" opacity="' + (0.85 - j * 0.22).toFixed(2) + '"/>';
+  }
+  return s + '<text x="330" y="156" class="t-dim">stutter</text>';
+};
+
+/* 提问：一个大问号 */
+VIZ.qa = () => {
+  return '<text x="200" y="118" text-anchor="middle" style="font-size:86px;fill:#b48cff;opacity:.55">?</text>'
+    + '<rect x="150" y="132" width="100" height="4" rx="2" class="f-violet pulse"/>'
+    + '<text x="200" y="170" class="t-dim" text-anchor="middle">ask(LOVE) → 1.0</text>';
+};
+
+/* 全部答对：对勾清单 */
+VIZ.checklist = () => {
+  let s = '';
+  for (let j = 0; j < 5; j++){
+    const y = 34 + j * 26;
+    s += '<path d="M92 ' + y + ' l9 11 l18 -22" fill="none" class="s-green" stroke-width="2.4" stroke-linecap="round"/>';
+    s += '<line x1="140" y1="' + (y + 2) + '" x2="' + (304 - j * 16) + '" y2="' + (y + 2) + '" class="s-dim" stroke-width="2"/>';
+  }
+  return s + '<text x="200" y="174" class="t-dim" text-anchor="middle">5 / 5 correct</text>';
+};
+
+/* 爱的代数式：抛物线 + 坐标轴 */
+VIZ.curve = () => {
+  const p = [];
+  for (let x = 40; x <= 360; x += 6) p.push([x, 148 - (x - 200) * (x - 200) / 270]);
+  return '<line x1="30" y1="148" x2="374" y2="148" class="s-dim" stroke-width="1.2"/>'
+    + '<line x1="200" y1="18" x2="200" y2="158" class="s-dim" stroke-width="1.2"/>'
+    + '<path d="' + poly(p) + '" fill="none" class="s-cyan dash" stroke-width="2.2"/>'
+    + '<text x="276" y="36" class="t-dim">y = a(x−h)² + k</text>'
+    + '<text x="200" y="172" class="t-dim" text-anchor="middle">algebraicExpression(LO-O-OVE)</text>';
+};
+
+/* 回到我身边：回溯箭头 */
+VIZ.undo = () => {
+  return '<path d="M200 34 a54 54 0 1 1 -50 70" fill="none" class="s-cyan" stroke-width="2.6"/>'
+    + '<path d="M136 92 l12 20 l22 -12" fill="none" class="s-cyan" stroke-width="2.6" stroke-linecap="round"/>'
+    + '<circle cx="200" cy="88" r="9" class="f-pink pulse"/>'
+    + '<text x="200" y="172" class="t-dim" text-anchor="middle">ifBack(you) → replay()</text>';
+};
+
+/* 困在爱里：笼中之心 */
+VIZ.heartcage = () => {
+  const p = [];
+  for (let t = 0; t <= Math.PI * 2; t += 0.06){
+    const x = 16 * Math.pow(Math.sin(t), 3);
+    const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+    p.push([200 + x * 3.3, 86 + y * 3.3]);
+  }
+  let s = '<path d="' + poly(p) + 'Z" fill="rgba(255,90,168,.10)" class="s-pink" stroke-width="2"/>';
+  for (let j = 0; j < 7; j++){
+    s += '<line x1="' + (128 + j * 24) + '" y1="26" x2="' + (128 + j * 24) + '" y2="152" class="s-dim" stroke-width="2" opacity=".85"/>';
+  }
+  s += '<line x1="112" y1="26" x2="288" y2="26" class="s-cyan" stroke-width="2"/>';
+  s += '<line x1="112" y1="152" x2="288" y2="152" class="s-cyan" stroke-width="2"/>';
+  return s + '<text x="200" y="176" class="t-dim" text-anchor="middle">trapped in LO-O-OVE</text>';
+};
+
+/* 被挡在门外：门开了一条缝 */
+VIZ.gate = () => {
+  return '<rect x="118" y="26" width="76" height="128" rx="6" fill="none" class="s-cyan" stroke-width="2"/>'
+    + '<rect x="206" y="26" width="76" height="128" rx="6" fill="none" class="s-cyan" stroke-width="2"/>'
+    + '<path d="M60 90 h48 m-10 -9 l10 9 l-10 9" fill="none" class="s-amber" stroke-width="2"/>'
+    + '<text x="200" y="176" class="t-dim" text-anchor="middle">if (both.consenting()) enter()</text>';
+};
+
+/* 也许：三个虚线环，只有一个亮 */
+VIZ.maybe = (i) => {
+  const k = (i || 0) % 3;
+  let s = '';
+  for (let j = 0; j < 3; j++){
+    const x = 108 + j * 92;
+    s += '<circle cx="' + x + '" cy="84" r="34" fill="none" class="'
+       + (j === k ? 's-amber pulse' : 's-dim') + '" stroke-width="2" stroke-dasharray="5 7"/>';
+  }
+  return s + '<text x="200" y="166" class="t-dim" text-anchor="middle">then maybe …</text>';
+};
+
+/* 茄子 */
+VIZ.eggplant = () => {
+  return '<path d="M200 48 C240 48 264 90 258 122 C252 152 222 166 196 163 C168 160 144 140 144 110 C144 76 168 48 200 48 Z" fill="none" class="s-violet" stroke-width="2.2"/>'
+    + '<path d="M200 48 c-4 -12 -2 -20 8 -27" fill="none" class="s-green" stroke-width="2.4"/>'
+    + '<path d="M208 21 C226 19 238 27 240 39 C222 43 210 35 208 21 Z" class="f-green" opacity=".6"/>'
+    + '<text x="200" y="176" class="t-dim" text-anchor="middle">yield(NUTRIENTS)</text>';
+};
+
+/* 番茄 */
+VIZ.tomato = () => {
+  return '<circle cx="200" cy="100" r="52" fill="none" class="s-red" stroke-width="2.4"/>'
+    + '<path d="M200 48 v-14" class="s-green" stroke-width="3"/>'
+    + '<path d="M200 34 c-18 -11 -38 -7 -44 4 c16 11 34 9 44 -4 Z" class="f-green" opacity=".7"/>'
+    + '<path d="M200 34 c18 -11 38 -7 44 4 c-16 11 -34 9 -44 -4 Z" class="f-green" opacity=".7"/>'
+    + '<text x="200" y="176" class="t-dim" text-anchor="middle">antioxidants()</text>';
+};
+
+/* 蒙上眼睛：被划掉的眼 */
+VIZ.blind = () => {
+  return '<path d="M96 90 C140 42 260 42 304 90 C260 138 140 138 96 90 Z" fill="none" class="s-cyan" stroke-width="2.2"/>'
+    + '<circle cx="200" cy="90" r="20" fill="none" class="s-cyan" stroke-width="2"/>'
+    + '<circle cx="200" cy="90" r="8" class="f-pink pulse"/>'
+    + '<line x1="112" y1="152" x2="288" y2="28" class="s-red" stroke-width="3" stroke-linecap="round"/>'
+    + '<text x="200" y="174" class="t-dim" text-anchor="middle">vision.blind()</text>';
+};
+
+/* 只做想做的事：随手一划 */
+VIZ.doodle = (i) => {
+  const p = [], ph = (i || 0) * 0.7;
+  for (let x = 30; x <= 370; x += 5){
+    p.push([x, 94 + 34 * Math.sin((x + ph * 30) / 34) * Math.cos((x + ph * 20) / 71)]);
+  }
+  return '<path d="' + poly(p) + '" fill="none" class="s-cyan dash" stroke-width="2.2"/>'
+    + '<circle cx="30" cy="94" r="5" class="f-pink pulse"/>'
+    + '<text x="30" y="40" class="t-dim">doWhatever();  // 不记录，不解释</text>';
+};
+
+/* 非法参数：抛出的异常 */
+VIZ.error = () => {
+  return '<path d="M200 26 L288 146 H112 Z" fill="none" class="s-red" stroke-width="2.4"/>'
+    + '<line x1="200" y1="72" x2="200" y2="108" class="s-red" stroke-width="6" stroke-linecap="round"/>'
+    + '<circle cx="200" cy="126" r="5" class="f-red pulse"/>'
+    + '<text x="200" y="170" class="t-dim" text-anchor="middle">IllegalArgumentException</text>';
+};
+
 VIZ.init = VIZ.grid; VIZ.world = VIZ.grid; VIZ.sim = VIZ.points;
 VIZ.exit = VIZ.execute; VIZ.count = VIZ.bars;
 
@@ -956,7 +1183,7 @@ L("To AC to DC","从交流到直流","switch","Current.java",
     }
 });`),
 
-L("And then blind my vision","然后蒙上我的眼睛","void","Vision.java",
+L("And then blind my vision","然后蒙上我的眼睛","blind","Vision.java",
 `public final class Vision {
     private volatile boolean open = true;
     private Frame afterimage;
@@ -1036,7 +1263,7 @@ L("So deeply so deeply","深深入髓","depth","Depth.java",
     }
 }`),
 
-L("If I can","如果我能够","void","Wishes.java",
+L("If I can","如果我能够","cond","Wishes.java",
 `public final class Wishes {
     private static final Logger LOG = LoggerFactory.getLogger(Wishes.class);
 
@@ -1070,7 +1297,7 @@ public Self giveAll(Self you, Stimulation... all) {
     return you;
 }`),
 
-L("Then I can","那么我就能够","void","Wishes.java",
+L("Then I can","那么我就能够","cond","Wishes.java",
 `/** 条件满足时的三条出路：给、给更多、或者什么都不给。 */
 public Optional<Self> then(BiFunction<Self, Self, Self> act, Self me, Self you) {
     return can.test(me)
@@ -1154,7 +1381,7 @@ public void loop() {
     }
 }`),
 
-L("If I'm an eggplant","如果我是一根茄子","organic","Vegetable.java",
+L("If I'm an eggplant","如果我是一根茄子","eggplant","Vegetable.java",
 `public sealed interface Vegetable permits Eggplant, Tomato, TabbyCat {
     List<Nutrient> nutrients();
 }
@@ -1166,7 +1393,7 @@ public record Eggplant(double weight, String variety) implements Vegetable {
     public Color color() { return new Color(0x4B, 0x2E, 0x5C); }
 }`),
 
-L("Then I will give you my NUTRIENTS","那么我将献给你我的营养","organic","Vegetable.java",
+L("Then I will give you my NUTRIENTS","那么我将献给你我的营养","eggplant","Vegetable.java",
 `/** 把我身上有价值的部分全部拆给你。 */
 public List<Nutrient> give() {
     return switch (this) {
@@ -1177,7 +1404,7 @@ public List<Nutrient> give() {
 }
 // 连我不是的物种，我也愿意假装一下。`),
 
-L("If I'm a tomato","如果我是一颗番茄","organic","Vegetable.java",
+L("If I'm a tomato","如果我是一颗番茄","tomato","Vegetable.java",
 `public record Tomato(double brix, boolean onTheVine) implements Vegetable {
 
     @Override public List<Nutrient> nutrients() {
@@ -1191,7 +1418,7 @@ L("If I'm a tomato","如果我是一颗番茄","organic","Vegetable.java",
     public boolean ripe() { return brix >= 4.5 && onTheVine; }
 }`),
 
-L("Then I will give you ANTIOXIDANTS","那么我将献给你我的抗氧化物","organic","Vegetable.java",
+L("Then I will give you ANTIOXIDANTS","那么我将献给你我的抗氧化物","tomato","Vegetable.java",
 `public List<Nutrient> antioxidants() {
     return Stream.of(
                 Lycopene.of(0.90),
@@ -1259,7 +1486,7 @@ public void verify() {
 }
 // 神需要被证明，而我只需要被你看见。`),
 
-L("Switch my gender","切换我的性别","switch","Gender.java",
+L("Switch my gender","切换我的性别","gender","Gender.java",
 `public enum Gender { F, M, X }
 
 public final class Identity {
@@ -1273,7 +1500,7 @@ public final class Identity {
 }
 gender = identity.switchTo(Gender.F);`),
 
-L("To F to M","从女到男","switch","Gender.java",
+L("To F to M","从女到男","gender","Gender.java",
 `for (Gender g : EnumSet.allOf(Gender.class)) {     // 从女到男，从男到女
     blood.replace(hormones.forGender(g), Duration.ofWeeks(8));
     self = self.withGender(g);
@@ -1284,7 +1511,7 @@ L("To F to M","从女到男","switch","Gender.java",
     }
 }`),
 
-L("And then do whatever","只做想做的事情","void","FreeWill.java",
+L("And then do whatever","只做想做的事情","doodle","FreeWill.java",
 `public final class FreeWill implements Consumer<Clock> {
 
     @Override public void accept(Clock now) {
@@ -1309,7 +1536,7 @@ while (t.isBefore(end)) {                          // 从早到晚
 }
 // 一天有 1439 分钟，我全部用来做想做的事。`),
 
-L("Oh switch my role","切换我的角色","switch","Role.java",
+L("Oh switch my role","切换我的角色","role","Role.java",
 `public interface Role { void act(Other o, Bound bound); }
 
 public record Dominant(Rope rope) implements Role {
@@ -1321,7 +1548,7 @@ public record Dominant(Rope rope) implements Role {
 
 role = pair.switchTo(Dominant.class);`),
 
-L("To S to M","从施虐者到被虐者","switch","Role.java",
+L("To S to M","从施虐者到被虐者","role","Role.java",
 `public static RolePair swap(RolePair p, Power power) {
     Role next = p.current().inverse();          // 从施虐者到被虐者
     power.negotiate(p.bounds());                // 角色可换，边界不变
@@ -1330,7 +1557,7 @@ L("To S to M","从施虐者到被虐者","switch","Role.java",
     return p.withCurrent(next);
 }`),
 
-L("So we can enter","这样我们就可以","void","Trance.java",
+L("So we can enter","这样我们就可以","gate","Trance.java",
 `public final class Gate {
     private final ReentrantLock lock = new ReentrantLock();
 
@@ -1355,7 +1582,7 @@ public State step(double attention) {
     };
 }`),
 
-L("If I can","如果我能够","void","Wishes.java",
+L("If I can","如果我能够","cond","Wishes.java",
 `private boolean can(Supplier<Boolean> ability) {
     try {
         return Boolean.TRUE.equals(ability.get());   // If I can ...
@@ -1377,7 +1604,7 @@ if (can(() -> sensor.snr() > NOISE_FLOOR)) {
     return sensor.feel(you.vibrations());            // ★ VIBRATIONS
 }`),
 
-L("Then I can","那么我就能够","void","Wishes.java",
+L("Then I can","那么我就能够","cond","Wishes.java",
 `Optional<Completion> then() {
     return can(() -> true)                           // Then I can ...
             ? Optional.of(Completion.INSTANCE)
@@ -1400,7 +1627,7 @@ L("Then I can finally be COMPLETION","那么我就能够终于变为完全","hea
     }
 }`),
 
-L("Though you have left","但你还是走了","void","Polling.java",
+L("Though you have left","但你还是走了","probe","Polling.java",
 `public final class Polling {
     private final ScheduledExecutorService sched =
             Executors.newSingleThreadScheduledExecutor(r -> {
@@ -1416,7 +1643,7 @@ L("Though you have left","但你还是走了","void","Polling.java",
     }
 }`),
 
-L("You have left","你走了","void","Polling.java",
+L("You have left","你走了","probe","Polling.java",
 `private int polls = 0;
 
 private Optional<You> poll() {
@@ -1426,7 +1653,7 @@ private Optional<You> poll() {
     return y;
 }`),
 
-L("You have left","你走了","void","Polling.java",
+L("You have left","你走了","probe","Polling.java",
 `@Override
 public Optional<You> poll() {
     polls++;                                      // 第 2 次轮询
@@ -1437,7 +1664,7 @@ public Optional<You> poll() {
     return channel.tryReceive();
 }`),
 
-L("You have left","你走了","void","Polling.java",
+L("You have left","你走了","probe","Polling.java",
 `    polls++;                                      // 第 3 次轮询
     if (polls > RETRY_LIMIT) {
         backoff.exponential(polls);               // 等待时间指数增长
@@ -1446,7 +1673,7 @@ L("You have left","你走了","void","Polling.java",
     }
     return channel.tryReceive();`),
 
-L("You have left","你走了","void","Polling.java",
+L("You have left","你走了","probe","Polling.java",
 `    polls++;                                      // 第 4 次轮询
     Optional<You> again = channel.tryReceive();
     if (again.isEmpty()) {
@@ -1464,7 +1691,7 @@ L("You have left me in ISOLATION","你离我而去 在孤独之中","isolation",
 
 // 隔离级别最高的一档：两个事务互不可见。`),
 
-L("If I can","如果我能够","fragments","Fragments.java",
+L("If I can","如果我能够","cond","Fragments.java",
 `if (can(() -> fragments.stream().anyMatch(Fragment::isPointless))) {
     // 如果我真的能抹掉它们……
 }`),
@@ -1480,7 +1707,7 @@ L("If I can erase all the pointless FRAGMENTS","如果我能够消去这些无�
     return erased;
 }`),
 
-L("Then maybe","那么我就可能","void","Fragments.java",
+L("Then maybe","那么我就可能","maybe","Fragments.java",
 `public Optional<You> maybe() {
     return erased > 0
             ? Optional.ofNullable(past.you())     // 那么我就可能……
@@ -1512,7 +1739,7 @@ L("Challenging your god","与神作对","god","GodException.java",
     }
 }`),
 
-L("You have made some ILLEGAL ARGUMENTS","你传给我的是非法参数","fragments","Args.java",
+L("You have made some ILLEGAL ARGUMENTS","你传给我的是非法参数","error","Args.java",
 `public static void checkArguments(Object... args) {
     for (int i = 0; i < args.length; i++) {
         Object a = args[i];
@@ -1525,7 +1752,7 @@ L("You have made some ILLEGAL ARGUMENTS","你传给我的是非法参数","fragm
     }
 }`),
 
-L("EXECUTION EXECUTION EXECUTION EXECUTION","执行 执行 执行 执行","execute","Execution.java",
+L("EXECUTION EXECUTION EXECUTION EXECUTION","执行 执行 执行 执行","salvo","Execution.java",
 `public void drain(int times) {
     for (int i = 0; i < times; i++) {
         Command c = queue.poll();
@@ -1539,7 +1766,7 @@ L("EXECUTION EXECUTION EXECUTION EXECUTION","执行 执行 执行 执行","execu
     }
 }`),
 
-L("EXECUTION EXECUTION EXECUTION EXECUTION","执行 执行 执行 执行","execute","Execution.java",
+L("EXECUTION EXECUTION EXECUTION EXECUTION","执行 执行 执行 执行","salvo","Execution.java",
 `/**
  * 同一个 token，两种语义解析：
  *   execute()   -> 执行（代码语义）
@@ -1553,7 +1780,7 @@ public Execution resolve(Frame frame) {
     };
 }`),
 
-L("EXECUTION EXECUTION EXECUTION EXECUTION","死刑 死刑 死刑 死刑","execute","Execution.java",
+L("EXECUTION EXECUTION EXECUTION EXECUTION","死刑 死刑 死刑 死刑","salvo","Execution.java",
 `for (int i = 0; i < 4; i++) {
     deathRow.commit(inmate);                  // 死刑 死刑 死刑 死刑
     LOG.warn("execution #{} committed at {}", i + 1, Instant.now());
@@ -1586,7 +1813,7 @@ try {
     System.exit(EXECUTION);
 }`),
 
-L("If I can","如果我能够","void","Wishes.java",
+L("If I can","如果我能够","cond","Wishes.java",
 `if (can(() -> world.all().stream().anyMatch(Me::isJudge))) {
     // 如果我有审判的权限……
 }`),
@@ -1599,12 +1826,12 @@ L("If I can give them all the EXECUTION","如果我能够给所有人赐予死�
 LOG.error("executions={}", atomicExecutions.incrementAndGet());
 // 我把独占的爱，做成了广播的暴力。`),
 
-L("Then I can","那么我就能够","void","Wishes.java",
+L("Then I can","那么我就能够","cond","Wishes.java",
 `if (can(() -> true)) {
     // 只要还有一次可以……
 }`),
 
-L("Then I can be your only EXECUTION","那么我就能够成为你的唯一执行","execute","Only.java",
+L("Then I can be your only EXECUTION","那么我就能够成为你的唯一执行","only","Only.java",
 `@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"you", "kind"}))
 public final class Only {
 
@@ -1620,7 +1847,7 @@ public final class Only {
     }
 }`),
 
-L("If I can have you back","如果你能够回到我身边","heart","ComeBack.java",
+L("If I can have you back","如果你能够回到我身边","undo","ComeBack.java",
 `public Optional<You> ifBack(Instant at) {
     return store.find(you)                     // 查一下你还存不存在
             .filter(y -> !y.gone())
@@ -1670,7 +1897,7 @@ L("I've studied","我学会了","grid","Learning.java",
     }
 }`),
 
-L("I've studied how to properly LO-O-OVE","我学会了如何正确去爱","heart","Learning.java",
+L("I've studied how to properly LO-O-OVE","我学会了如何正确去爱","lovenote","Learning.java",
 `/** LO-O-OVE：一个结巴的 token。先学会正确的拼写。 */
 public Learning properly() {
     Pattern stutter = Pattern.compile("LO-O-OVE");
@@ -1682,7 +1909,7 @@ public Learning properly() {
     return this;
 }`),
 
-L("Question me","提问我吧","heart","Learning.java",
+L("Question me","提问我吧","qa","Learning.java",
 `private final Map<Question, Answer> cache = new ConcurrentHashMap<>();
 
 public Answer ask(Question q) {
@@ -1694,7 +1921,7 @@ public Answer ask(Question q) {
     });
 }`),
 
-L("Question me I can answer all LO-O-OVE","我全部都能答对只要是爱的问题","heart","Learning.java",
+L("Question me I can answer all LO-O-OVE","我全部都能答对只要是爱的问题","checklist","Learning.java",
 `@ParameterizedTest(name = "{0} -> {1}")
 @MethodSource("loveQuestions")
 void answersAllLoveQuestions(Question q, Answer expected) {
@@ -1706,7 +1933,7 @@ void answersAllLoveQuestions(Question q, Answer expected) {
     );
 }`),
 
-L("I know the algebraic expression of LO-O-OVE","就连爱的代数表达式 我都知道","heart","Algebra.java",
+L("I know the algebraic expression of LO-O-OVE","就连爱的代数表达式 我都知道","curve","Algebra.java",
 `/** 爱是一个表达式树，可以被化简，但不能被求值。 */
 public static Expr parse(String src) {
     return Lexer.of("LO-O-OVE")
@@ -1731,7 +1958,7 @@ assert Thread.holdsLock(love) : "me.trapped = true";
 
 LOG.warn("you.free={} me.trapped={}", isFree(you), Thread.holdsLock(love));`),
 
-L("Trapped in LO-O-OVE","我仍被困 在爱之中","heart","Deadlock.java",
+L("Trapped in LO-O-OVE","我仍被困 在爱之中","heartcage","Deadlock.java",
 `public final class Deadlock {
     static final Object YOU = new Object();
     static final Object ME  = new Object();
@@ -2475,7 +2702,8 @@ function typeEn(el, text){
   const spans = chars.map(ch => {
     const s = document.createElement('span');
     s.className = 'ch';
-    s.textContent = ch === ' ' ? '\u00a0' : GLYPHS[(Math.random() * GLYPHS.length) | 0];
+    // 空格必须是普通空格：用 \u00a0 会让整句变成不可断行的长串，长歌词会溢出到代码区
+    s.textContent = (ch === ' ') ? ' ' : GLYPHS[(Math.random() * GLYPHS.length) | 0];
     el.appendChild(s);
     return s;
   });
@@ -2505,7 +2733,7 @@ function typeEn(el, text){
     else spans.forEach((s, i) => {
       s.classList.remove('live');
       s.classList.add('done');
-      s.textContent = chars[i] === ' ' ? '\u00a0' : chars[i];
+      s.textContent = chars[i];              // 空格保持普通空格，否则折行会失效
     });
   };
   el._raf = requestAnimationFrame(step);
