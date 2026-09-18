@@ -25,6 +25,10 @@
   --fs-body:14.5px;
 }
 *{box-sizing:border-box}
+/* 关键：浏览器 UA 样式表给 pre/code/textarea 等直接写了 font-family:monospace，
+   它命中元素本身，会盖掉从 body 继承下来的 --mono 字体栈。
+   不显式声明的话，内嵌字体根本轮不到代码区。 */
+pre,code,kbd,samp,textarea,input,select,button{font-family:var(--mono)}
 html,body{margin:0;height:100%}
 body{
   background:
@@ -102,6 +106,14 @@ h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);ve
 .idx{position:absolute;top:11px;left:16px;font-size:11.5px;letter-spacing:1.4px;color:#3f4d66}
 .idx b{color:var(--cyan);font-weight:500}
 .left,.right{min-width:0}
+.right{position:relative;display:flex;flex-direction:column}
+/* 代码超出可视高度时，底部给一条渐隐提示，滚到底自动收起 */
+.right.scrollable::after{
+  content:"";position:absolute;left:1px;right:9px;bottom:1px;height:38px;
+  border-radius:0 0 12px 12px;pointer-events:none;transition:opacity .25s;
+  background:linear-gradient(180deg,rgba(6,9,16,0),rgba(6,9,16,.97));
+}
+.right.at-bottom::after{opacity:0}
 .en{
   font-size:clamp(19px,2.3vw,31px);line-height:1.36;
   margin:26px 0 9px;color:#eaf2ff;font-weight:600;letter-spacing:.2px;
@@ -150,10 +162,12 @@ h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);ve
 .copy:hover{color:#fff;border-color:rgba(110,231,255,.6);background:rgba(110,231,255,.12)}
 .copy.done{color:var(--green);border-color:rgba(126,231,135,.6)}
 pre.code{
-  margin:0;padding:13px 14px 15px;flex:1 1 auto;
+  margin:0;padding:13px 14px 15px;flex:0 1 auto;
+  max-height:min(48vh,420px);           /* 代码区限高内滚，长片段不再把卡片撑高 */
   border:1px solid rgba(110,231,255,.16);border-radius:0 0 12px 12px;
   background:linear-gradient(180deg,rgba(8,12,22,.94),rgba(6,9,16,.94));
-  overflow-x:auto;font-size:var(--fs-code);line-height:1.72;tab-size:4;
+  overflow:auto;font-size:var(--fs-code);line-height:1.72;tab-size:4;
+  scrollbar-width:thin;scrollbar-color:rgba(110,231,255,.28) transparent;
 }
 pre.code::-webkit-scrollbar{height:8px;width:8px}
 pre.code::-webkit-scrollbar-thumb{background:rgba(110,231,255,.2);border-radius:9px}
@@ -1848,7 +1862,9 @@ cardsEl.innerHTML = LINES.map((l, i) => {
   const lines = hl(l.code);
   const start = 12 + (i * 13) % 180;
   const end = start + lines.length - 1;
-  const body = lines.map(h => '<span class="cline">' + (h.length ? h : '&nbsp;') + '</span>').join('\n');
+  // 注意：.cline 是 display:block，拼接时不能夹换行符 —— <pre> 里那个 \n
+  // 会真的渲染成一个空行，把代码高度翻倍
+  const body = lines.map(h => '<span class="cline">' + (h.length ? h : '&nbsp;') + '</span>').join('');
 
   return '<article class="card" data-i="' + i + '">'
     +   '<i class="runner"></i><i class="scan"></i>'
@@ -1871,6 +1887,16 @@ cardsEl.innerHTML = LINES.map((l, i) => {
 
 const cards = Array.from(cardsEl.children);
 
+/* 代码区滚到底时收起底部渐隐 */
+cards.forEach(card => {
+  const p = card.querySelector('pre.code');
+  if (!p) return;
+  p.addEventListener('scroll', () => {
+    p.parentElement.classList.toggle('at-bottom',
+      p.scrollTop + p.clientHeight >= p.scrollHeight - 4);
+  }, {passive:true});
+});
+
 function setIndex(i, opts){
   opts = opts || {};
   i = Math.max(0, Math.min(N - 1, i));
@@ -1885,6 +1911,13 @@ function setIndex(i, opts){
 
   const active = cards[i];
   typeEn(active.querySelector('.en'), LINES[i].en);
+
+  const preEl = active.querySelector('pre.code');
+  if (preEl){                                   // 代码区回到顶部，并按需显示底部渐隐
+    preEl.scrollTop = 0;
+    preEl.parentElement.classList.toggle('scrollable', preEl.scrollHeight > preEl.clientHeight + 4);
+    preEl.parentElement.classList.remove('at-bottom');
+  }
   typeCode(active.querySelector('code'), LINES[i].code.length);
   animateViz(active);
 
@@ -1904,9 +1937,11 @@ function setIndex(i, opts){
  * 卡片普遍比视口高（代码很长），居中会把编号和英文歌词顶到视野外，
  * 只剩译文和 SVG —— 那正好是最该看见的一句。
  */
-function scrollCardToTop(el){
+function scrollCardToTop(el, instant){
   const pad = 18;
-  stage.scrollTo({ top: Math.max(0, el.offsetTop - pad), behavior: 'smooth' });
+  const top = Math.max(0, el.offsetTop - pad);
+  if (instant) stage.scrollTop = top;                    // 深链进入时直接落位
+  else stage.scrollTo({ top, behavior: 'smooth' });
 }
 
 function next(){ const i = Math.min(N - 1, index + 1); setIndex(i); seekTo(i); }
@@ -2492,7 +2527,7 @@ function buildChars(codeEl){
   texts.forEach(tn => {
     const frag = document.createDocumentFragment();
     for (const ch of tn.nodeValue){
-      if (ch === ' ' || ch === '\t'){          // 空格不参与动画，省一半节点
+      if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r'){   // 空白不参与动画
         frag.appendChild(document.createTextNode(ch));
         continue;
       }
@@ -2512,7 +2547,9 @@ function typeCode(codeEl, charCount){
   if (!codeEl) return;
   const chars = buildChars(codeEl);
   const n = chars.length;
+  const pre = codeEl.parentElement;               // pre.code，可滚动的那个
   cancelAnimationFrame(codeEl._typeRaf);
+  clearTimeout(codeEl._settle);
 
   if (REDUCED || n === 0){
     for (const c of chars) c.classList.remove('hide');
@@ -2522,7 +2559,7 @@ function typeCode(codeEl, charCount){
 
   const dur = Math.min(1500, Math.max(650, charCount * 2.2));
   const t0 = performance.now();
-  let i = 0, head = null;
+  let i = 0, head = null, fno = 0;
 
   const frame = now => {
     const target = Math.min(n, Math.ceil((now - t0) / dur * n));
@@ -2532,10 +2569,26 @@ function typeCode(codeEl, charCount){
     if (i < n){
       head = chars[i];
       head.classList.add('head');
+      if ((fno++ & 3) === 0) followHead(pre, head);      // 光标出界就把代码区带着滚
       codeEl._typeRaf = requestAnimationFrame(frame);
+    } else {
+      // 写完停一下再回到顶部，方便从头读；卡片已经切走就不动它
+      codeEl._settle = setTimeout(() => {
+        if (pre && pre.closest('.card').classList.contains('active')){
+          pre.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }, 600);
     }
   };
   codeEl._typeRaf = requestAnimationFrame(frame);
+}
+
+/** 让方块光标留在代码可视区内 */
+function followHead(pre, head){
+  if (!pre || pre.scrollHeight <= pre.clientHeight + 4) return;
+  const hr = head.getBoundingClientRect(), pr = pre.getBoundingClientRect();
+  if (hr.bottom > pr.bottom - 14) pre.scrollTop += (hr.bottom - pr.bottom) + 44;
+  else if (hr.top < pr.top + 8) pre.scrollTop -= (pr.top - hr.top) + 44;
 }
 
 /** SVG 自我绘制：描边路径"画"出来，填充图形弹出来，文字浮上来 */
@@ -2661,10 +2714,14 @@ setInterval(() => {
 }, 9000);
 
 /* ---- 启动 ---- */
-setIndex(0, {scroll:false});
+/* 支持 ?n=34 直接跳到第 34 句，便于分享某一句 */
+const qLine = parseInt(new URLSearchParams(location.search).get('n') || '', 10);
+const startLine = Number.isFinite(qLine) ? Math.min(N - 1, Math.max(0, qLine - 1)) : 0;
+setIndex(startLine, {scroll:false});
 loadTimeline();
 renderStamps();
 startSync();
+if (startLine > 0) setTimeout(() => scrollCardToTop(cards[startLine], true), 120);
 
 const bundledEl = document.getElementById('bundledAudio');
 if (bundledEl && bundledEl.textContent.replace(/\s+/g, '').length > 1000){
