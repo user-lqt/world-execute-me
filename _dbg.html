@@ -273,9 +273,9 @@ pre.code .ch.head{
 #cage i{
   position:absolute;top:-2%;bottom:-2%;opacity:0;transform:scaleY(0);transform-origin:top center;
   background:linear-gradient(90deg,
-    rgba(2,4,8,.55), rgba(140,190,220,.20) 34%,
-    rgba(226,248,255,.46) 48%, rgba(140,190,220,.18) 62%, rgba(2,4,8,.55));
-  box-shadow:0 0 22px rgba(0,0,0,.45);
+    rgba(2,4,8,.72), rgba(140,190,220,.26) 34%,
+    rgba(226,248,255,.60) 48%, rgba(140,190,220,.24) 62%, rgba(2,4,8,.72));
+  box-shadow:0 0 26px rgba(0,0,0,.55);
 }
 #cage b{
   position:absolute;left:-2%;right:-2%;height:15px;opacity:0;transform:scaleX(.3);
@@ -295,11 +295,11 @@ pre.code .ch.head{
 #cage.on i,#cage.on b{opacity:1;transform:none}
 
 /* ── 持续状态层：进入某几句时整页维持一种"处境" ── */
-/* 隔离：除了中间一圈，其余逐渐沉入黑暗（隧道视觉，但保留内容可读） */
+/* 隔离：除了中间一小圈，其余全部沉入黑暗（隧道视觉） */
 .fx-veil{
   position:absolute;inset:0;opacity:0;
   background:radial-gradient(circle at 50% 47%,
-    transparent 0 22%, rgba(0,0,0,.42) 44%, rgba(0,0,0,.84) 76%);
+    transparent 0 17%, rgba(0,0,0,.55) 34%, rgba(0,0,0,.94) 62%);
 }
 /* 高潮/爱的色调：从底部漫上来的颜色 */
 .fx-tint{
@@ -478,7 +478,7 @@ footer{
   .hint{display:none}
 }
 </style>
-</head>
+<style>:root{transition:none!important}</style></head>
 <body>
 <div id="glow" aria-hidden="true"></div>
 <canvas id="bgc"></canvas>
@@ -3062,13 +3062,13 @@ let cageOn = false;
 function buildCage(){
   const host = document.getElementById('cage');
   if (!host || host._built) return host;
-  const COUNT = 9;
+  const COUNT = 11;
   for (let i = 0; i < COUNT; i++){
     const t = i / (COUNT - 1);                     // 0 → 1
     const edge = Math.abs(t - .5) * 2;             // 0 中心 → 1 边缘
-    const w = 9 + edge * 9;                        // 边缘更粗，做出景深
+    const w = 11 + edge * 11;                      // 边缘更粗，做出景深
     const bar = document.createElement('i');
-    bar.style.left = (5 + t * 90) + '%';
+    bar.style.left = (4 + t * 92) + '%';
     bar.style.width = w + 'px';
     bar.style.marginLeft = (-w / 2) + 'px';
     bar.style.opacity = (0.82 + edge * 0.18).toFixed(2);
@@ -4119,5 +4119,11 @@ if (bundledEl && bundledEl.textContent.replace(/\s+/g, '').length > 1000){
   setPlaying(true);
 }
 </script>
-</body>
+<script>
+setTimeout(function(){
+  var st = document.getElementById('stage');
+  st.style.scrollBehavior = 'auto';
+  st.scrollTop = Math.max(0, document.querySelector('.card.active').offsetTop - 18);
+}, 250);
+</script></body>
 </html>

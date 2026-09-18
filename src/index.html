@@ -6,6 +6,8 @@
 <title>World.execute(me); — 歌词 × 代码 逐句体验</title>
 <style>
 /*__FONT__*/                      /* 构建脚本在此注入内嵌等宽字体 @font-face */
+/* 把 --heat 注册成可动画的自定义属性：换句时整站配色是"流"过去的，不是硬切 */
+@property --heat{syntax:'<number>';inherits:true;initial-value:0}
 :root{
   --bg:#05060a;
   --fg:#c9d4e5;
@@ -16,21 +18,35 @@
   --green:#7ee787;
   --violet:#b48cff;
   --red:#ff4d5e;
-  --line:rgba(110,231,255,.14);
   /* ── 强度引擎 ─────────────────────────────────────────────
-     每句歌词有一个 0–1 的热度（HEAT 数组），--accent 由它算出：
-     hue 193°(青) → 360°(红)，中间依次经过蓝、紫、品红。
-     整站的边框、辉光、标题、进度条、SVG 主色都跟着这句的情绪走。 */
-  --heat: 0;
-  --accent: hsl(calc(193 + var(--heat) * 167) 100% 68%);
-  --accent-dim: hsl(calc(193 + var(--heat) * 167) 100% 68% / .45);
-  --accent-faint: hsl(calc(193 + var(--heat) * 167) 100% 68% / .15);
+     每句歌词有一个 0–1 的热度（HEAT 数组）。
+     色相 196°(青蓝) → 360°(红)，而且饱和度和亮度同时抬升：
+     低热是又深又闷的蓝，高热是又亮又烫的红 —— 拉开的不仅是色相。
+     --heat 带 .95s 过渡，所以换句时整站配色会平滑地淌过去。 */
+  --heat: 0.14;
+  --accent-h: calc(196 + var(--heat) * 164);
+  --accent-s: calc(68% + var(--heat) * 32%);
+  --accent-l: calc(42% + var(--heat) * 30%);
+  --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-dim: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / .50);
+  --accent-faint: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / .20);
+  --line: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / .20);
   /* 拉丁部分用内嵌字体保证处处等宽；中日韩退回系统等宽字（NSimSun 每个汉字恰好 1em 宽） */
   --mono:'WEM Mono','Cascadia Mono','Sarasa Mono SC','更纱黑体 Mono SC',
          'Noto Sans Mono CJK SC','Noto Sans Mono','NSimSun','MS Gothic',
          Consolas,'DejaVu Sans Mono','Courier New',monospace;
   --fs-code:14.2px;
   --fs-body:14.5px;
+  transition:--heat .6s cubic-bezier(.4,0,.2,1);
+}
+/* 整页色调：上下两片随热度浓淡的颜色雾，最高到 0.34 不透明度。
+   独立合成层，过渡期间只改 opacity，不重新光栅化整屏渐变。 */
+#glow{
+  position:fixed;inset:0;z-index:0;pointer-events:none;will-change:opacity;
+  background:
+    radial-gradient(125% 85% at 50% -12%, var(--accent) 0%, transparent 58%),
+    radial-gradient(125% 85% at 50% 112%, var(--accent) 0%, transparent 58%);
+  opacity:calc(.12 + var(--heat) * .22);
 }
 *{box-sizing:border-box}
 /* 关键：浏览器 UA 样式表给 pre/code/textarea 等直接写了 font-family:monospace，
@@ -40,8 +56,8 @@ pre,code,kbd,samp,textarea,input,select,button{font-family:var(--mono)}
 html,body{margin:0;height:100%}
 body{
   background:
-    radial-gradient(1100px 620px at 12% -12%, rgba(110,231,255,.10), transparent 62%),
-    radial-gradient(900px 520px at 92% 112%, rgba(255,90,168,.10), transparent 62%),
+    radial-gradient(1100px 620px at 12% -12%, var(--accent-faint), transparent 62%),
+    radial-gradient(900px 520px at 92% 112%, var(--accent-faint), transparent 62%),
     linear-gradient(180deg,#05060a,#080b13 42%,#05060a);
   color:var(--fg);
   font-family:var(--mono);
@@ -70,6 +86,7 @@ header{
   padding:16px 26px 13px;border-bottom:1px solid var(--line);
   background:linear-gradient(180deg,rgba(5,6,10,.94),rgba(5,6,10,.55));
   backdrop-filter:blur(9px);
+  box-shadow:inset 0 -30px 60px -40px var(--accent);
 }
 h1{margin:0;font-size:clamp(17px,2.1vw,25px);font-weight:600;letter-spacing:.4px;white-space:nowrap}
 h1 .w1{color:var(--violet)}
@@ -102,10 +119,14 @@ h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);ve
   gap:26px;
   max-width:1340px;margin:0 auto 28px;padding:28px 26px 24px;
   border:1px solid var(--line);border-radius:16px;
-  /* 不用 backdrop-filter：每张卡都会开一个背景采样层，实测页面里有 89 个
-     backdrop-filter 元素，是最大的性能开销。改用不透明渐变代替。 */
+  /* 卡片本身也被染上当前色调：深色底 + 一层随热度加深的颜色 */
   background:linear-gradient(158deg,#101624,#090c14);
   transition:opacity .45s ease,transform .45s ease,border-color .45s ease,box-shadow .45s ease;
+}
+.card::before{
+  content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;
+  background:linear-gradient(158deg,var(--accent) 0%,transparent 68%);
+  opacity:calc(.04 + var(--heat) * .10);
 }
 .card.past{opacity:.2;filter:saturate(.45)}
 .card.active{
@@ -245,7 +266,79 @@ pre.code .ch.head{
 }
 .card.active::after{opacity:calc(.45 + var(--level,0) * .55);will-change:opacity}
 
-/* ── 转场特效层：换句时的一道冲击 ── */
+/* ── 囚笼：真的在页面上架一组栏杆 ──
+   越靠画面边缘的栏杆越粗越暗（近大远小），杆身中段有一条高光，
+   所以看起来是圆的金属杆而不是色块。 */
+#cage{position:fixed;inset:0;pointer-events:none;z-index:55;overflow:hidden}
+#cage i{
+  position:absolute;top:-2%;bottom:-2%;opacity:0;transform:scaleY(0);transform-origin:top center;
+  background:linear-gradient(90deg,
+    rgba(2,4,8,.55), rgba(140,190,220,.20) 34%,
+    rgba(226,248,255,.46) 48%, rgba(140,190,220,.18) 62%, rgba(2,4,8,.55));
+  box-shadow:0 0 22px rgba(0,0,0,.45);
+}
+#cage b{
+  position:absolute;left:-2%;right:-2%;height:15px;opacity:0;transform:scaleX(.3);
+  background:linear-gradient(180deg,
+    rgba(2,4,8,.75), rgba(200,232,255,.42) 45%, rgba(2,4,8,.7));
+  box-shadow:0 0 30px rgba(0,0,0,.6);
+}
+#cage b.cage-rail-top{top:0;transform-origin:left center}
+#cage b.cage-rail-bot{bottom:0;transform-origin:right center}
+/* 栏杆之间再压一层暗角，强化"被关在里面"的感觉 */
+#cage::after{
+  content:"";position:absolute;inset:0;opacity:0;transition:opacity .5s;
+  background:radial-gradient(120% 90% at 50% 50%,transparent 42%,rgba(0,0,0,.5) 100%);
+}
+#cage.on::after{opacity:1}
+/* 降低动态效果时不做动画，直接显示 */
+#cage.on i,#cage.on b{opacity:1;transform:none}
+
+/* ── 持续状态层：进入某几句时整页维持一种"处境" ── */
+/* 隔离：除了中间一圈，其余逐渐沉入黑暗（隧道视觉，但保留内容可读） */
+.fx-veil{
+  position:absolute;inset:0;opacity:0;
+  background:radial-gradient(circle at 50% 47%,
+    transparent 0 22%, rgba(0,0,0,.42) 44%, rgba(0,0,0,.84) 76%);
+}
+/* 高潮/爱的色调：从底部漫上来的颜色 */
+.fx-tint{
+  position:absolute;inset:0;opacity:0;
+  background:radial-gradient(130% 110% at 50% 108%, var(--accent) 0%, transparent 62%);
+}
+/* 恍惚：两层反向旋转的虚线大环 */
+.fx-trance{position:absolute;inset:0;opacity:0;overflow:hidden}
+.fx-trance b{
+  position:absolute;left:50%;top:48%;width:120vmax;height:120vmax;margin:-60vmax 0 0 -60vmax;
+  border:2px dashed var(--accent-dim);border-radius:50%;
+  animation:rot 26s linear infinite;
+}
+.fx-trance b:nth-child(2){
+  width:78vmax;height:78vmax;margin:-39vmax 0 0 -39vmax;
+  animation-duration:15s;animation-direction:reverse;
+}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* ── 演出层：按歌词内容编排的画面 ── */
+.fx-dark{position:absolute;inset:0;opacity:0;background:#000;pointer-events:none}
+.fx-items{position:absolute;inset:0}
+.fx-item{position:absolute;display:block;opacity:0;will-change:transform,opacity}
+.fx-item.sq{background:var(--accent);border-radius:2px;box-shadow:0 0 8px var(--accent-dim)}
+.fx-item.ring{border:2px solid var(--accent);border-radius:50%}
+.fx-item.softring{border:1px solid var(--accent-dim);border-radius:50%}
+.fx-item.stream{background:var(--accent);border-radius:1px}
+.fx-item.jail{background:linear-gradient(180deg,var(--accent-dim),transparent 88%);border-radius:2px}
+.fx-item.panel{background:#04060b;box-shadow:0 0 60px var(--accent-dim)}
+.fx-item.x{background:
+  linear-gradient(45deg,transparent 45%,var(--red) 45% 55%,transparent 55%),
+  linear-gradient(-45deg,transparent 45%,var(--red) 45% 55%,transparent 55%)}
+.fx-item.num{font:600 76px/1 var(--mono);color:var(--accent);text-align:center;
+  text-shadow:0 0 34px var(--accent-dim)}
+
+/* 眩晕：整页模糊。filter 是静态的（不逐帧动画），只光栅化一次 */
+#stage{transition:filter .38s ease}
+#stage.fx-blur{filter:blur(7px) saturate(1.6) hue-rotate(14deg)}
+
 #fx{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden}
 .fx-flash{
   position:absolute;inset:0;opacity:0;
@@ -387,6 +480,7 @@ footer{
 </style>
 </head>
 <body>
+<div id="glow" aria-hidden="true"></div>
 <canvas id="bgc"></canvas>
 
 <header>
@@ -414,7 +508,8 @@ footer{
 
 <main id="stage"><div id="cards"></div></main>
 
-<div id="fx" aria-hidden="true"><i class="fx-flash"></i><i class="fx-whip"></i><i class="fx-bars"></i><i class="fx-grid"></i></div>
+<div id="cage" aria-hidden="true"><b class="cage-rail-top"></b><b class="cage-rail-bot"></b></div>
+<div id="fx" aria-hidden="true"><i class="fx-flash"></i><i class="fx-whip"></i><i class="fx-bars"></i><i class="fx-grid"></i><i class="fx-dark"></i><i class="fx-veil"></i><i class="fx-tint"></i><div class="fx-trance"><b></b><b></b></div><div class="fx-items"></div></div>
 
 <footer>
   <button class="btn" id="prev" aria-label="上一句">◀◀</button>
@@ -2163,7 +2258,11 @@ function fx(){
     flash: document.querySelector('.fx-flash'),
     whip:  document.querySelector('.fx-whip'),
     bars:  document.querySelector('.fx-bars'),
-    grid:  document.querySelector('.fx-grid')
+    grid:  document.querySelector('.fx-grid'),
+    dark:  document.querySelector('.fx-dark'),
+    veil:  document.querySelector('.fx-veil'),
+    tint:  document.querySelector('.fx-tint'),
+    trance: document.querySelector('.fx-trance')
   };
   return fxEls;
 }
@@ -2272,8 +2371,743 @@ function sceneFx(kind, heat){
   }
 }
 
-/** 卡片入场：热度越高，推进感越强 */
-function cardEnter(el, heat, big){
+/* =========================================================
+   2.8 演出：让页面把歌词"演"出来
+   一个 32 格的元素池反复复用，换句时只改样式和动画，不增删 DOM。
+   所有演出只用 transform / opacity（眩晕的模糊除外，它是静态滤镜）。
+   ========================================================= */
+const fxPool = [];
+let poolTimer = null, poolReady = false;
+/** 延迟建池：不在脚本顶层碰 DOM，方便离线校验数据 */
+function ensurePool(){
+  if (poolReady) return;
+  poolReady = true;
+  const host = document.querySelector('.fx-items');
+  if (!host) return;
+  for (let i = 0; i < 32; i++){
+    const el = document.createElement('i');
+    el.className = 'fx-item';
+    host.appendChild(el);
+    fxPool.push(el);
+  }
+}
+
+function poolReset(){
+  ensurePool();
+  clearTimeout(poolTimer);
+  for (const el of fxPool){
+    if (el._a){ el._a.cancel(); el._a = null; }
+    el.className = 'fx-item';
+    el.style.cssText = '';
+    el.textContent = '';
+  }
+}
+function poolCleanup(ms){ clearTimeout(poolTimer); poolTimer = setTimeout(poolReset, ms); }
+
+/** 摆好一个池元素：css 直接写 left/top/width/height 等 */
+function put(i, css, cls){
+  ensurePool();
+  const el = fxPool[i];
+  el.className = 'fx-item' + (cls ? ' ' + cls : '');
+  el.style.cssText = css;
+  return el;
+}
+function fire(el, frames, opts){ el._a = el.animate(frames, opts); return el; }
+
+/** 屏幕轻微震动：只震当前卡，不碰那个近两万像素高的滚动容器 */
+function shakeCard(power){
+  const card = document.querySelector('.card.active');
+  if (!card) return;
+  const p = power;
+  card.animate([
+    { transform: 'translate(0,0)' },
+    { transform: 'translate(' + (-p) + 'px,' + (p * .6) + 'px) rotate(' + (-p / 40) + 'deg)' },
+    { transform: 'translate(' + (p * .8) + 'px,' + (-p * .5) + 'px) rotate(' + (p / 40) + 'deg)' },
+    { transform: 'translate(' + (-p * .5) + 'px,' + (p * .3) + 'px)' },
+    { transform: 'translate(0,0)' }
+  ], { duration: 90, iterations: 3, easing: 'linear' });
+}
+
+/* ---------- 演出表：句号 → 编排 ---------- */
+const PERFORM = {
+
+  /* 01 接上电源：一道电涌从左往右推过去 */
+  1: (h) => {
+    fx().grid.animate([
+      { opacity: 0, transform: 'scaleX(.15) scaleY(1)', transformOrigin: '0% 50%' },
+      { opacity: .95, offset: .3 },
+      { opacity: 0, transform: 'scaleX(1)' }
+    ], { duration: 1300, easing: 'cubic-bezier(.2,.9,.25,1)' });
+  },
+
+  /* 03 摆好棋子：24 枚方块落下来吸附到位 */
+  3: () => {
+    for (let i = 0; i < 24; i++){
+      const col = i % 8, row = (i / 8) | 0;
+      const el = put(i, 'left:' + (16 + col * 8.6) + '%;top:' + (20 + row * 17) +
+        '%;width:11px;height:11px', 'sq');
+      fire(el, [
+        { opacity: 0, transform: 'translateY(-70vh) rotate(-50deg)' },
+        { opacity: 1, offset: .5 },
+        { opacity: 1, transform: 'translateY(0) rotate(0)', offset: .64 },
+        { opacity: 1, transform: 'translateY(0)', offset: .84 },
+        { opacity: 0 }
+      ], { duration: 1700, delay: (col + row) * 40,
+           easing: 'cubic-bezier(.25,1.4,.45,1)', fill: 'both' });
+    }
+    poolCleanup(2700);
+  },
+
+  /* 05 输入我的参数数据：竖排数据流灌进来 */
+  5: () => {
+    for (let i = 0; i < 14; i++){
+      const el = put(i, 'left:' + (6 + i * 6.6) + '%;top:0;width:2px;height:26vh', 'stream');
+      fire(el, [
+        { opacity: 0, transform: 'translateY(-30vh)' },
+        { opacity: .9, offset: .25 },
+        { opacity: .9, offset: .6 },
+        { opacity: 0, transform: 'translateY(96vh)' }
+      ], { duration: 1200, delay: i * 55, easing: 'cubic-bezier(.4,0,.7,1)', fill: 'both' });
+    }
+    poolCleanup(2200);
+  },
+
+  /* 11 如果我是一个圆：三个圆环从中心扩散开 */
+  11: () => {
+    for (let i = 0; i < 3; i++){
+      const el = put(i, 'left:50%;top:46%;width:120px;height:120px;margin:-60px 0 0 -60px', 'ring');
+      fire(el, [
+        { opacity: 0, transform: 'scale(.2)' },
+        { opacity: .9, offset: .2 },
+        { opacity: 0, transform: 'scale(3.4)' }
+      ], { duration: 1300, delay: i * 260, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'both' });
+    }
+    poolCleanup(2100);
+  },
+
+  /* 13 如果我是一条正弦波：一排点连成行进波 */
+  13: () => {
+    for (let i = 0; i < 22; i++){
+      const x = 4 + i * 4.3;
+      const el = put(i, 'left:' + x + '%;top:50%;width:7px;height:7px;border-radius:50%;background:var(--accent)');
+      const amp = 16, phase = (i / 22) * Math.PI * 3;
+      fire(el, [
+        { opacity: 0, transform: 'translateY(0) scale(.4)' },
+        { opacity: 1, transform: 'translateY(' + (-Math.sin(phase) * amp) + 'vh) scale(1)', offset: .35 },
+        { opacity: 1, transform: 'translateY(' + (Math.sin(phase) * amp) + 'vh)', offset: .7 },
+        { opacity: 0, transform: 'translateY(0)' }
+      ], { duration: 1700, delay: i * 26, easing: 'ease-in-out', fill: 'both' });
+    }
+    poolCleanup(2600);
+  },
+
+  /* 15 趋近无穷：一圈圈推进，像掉进隧道 */
+  15: () => {
+    for (let i = 0; i < 6; i++){
+      const el = put(i, 'left:50%;top:46%;width:180px;height:180px;margin:-90px 0 0 -90px', 'softring');
+      fire(el, [
+        { opacity: 0, transform: 'scale(.05)' },
+        { opacity: .85, offset: .25 },
+        { opacity: 0, transform: 'scale(6)' }
+      ], { duration: 2000, delay: i * 180, easing: 'cubic-bezier(.3,.1,.6,1)', fill: 'both' });
+    }
+    poolCleanup(3200);
+  },
+
+  /* 17-18 切换电流 / 从交流到直流：接触不良般地闪烁 */
+  17: () => {
+    fx().flash.animate([
+      { opacity: 0 }, { opacity: .5, offset: .08 }, { opacity: .04, offset: .2 },
+      { opacity: .42, offset: .34 }, { opacity: .03, offset: .48 },
+      { opacity: .3, offset: .62 }, { opacity: 0 }
+    ], { duration: 900, easing: 'steps(1, end)' });
+  },
+
+  /* 20 头晕目眩：整页模糊 + 卡片打转 + 螺旋环 */
+  20: () => {
+    const st = document.getElementById('stage');
+    if (st){
+      st.classList.add('fx-blur');
+      setTimeout(() => st.classList.remove('fx-blur'), 1700);
+    }
+    const card = document.querySelector('.card.active');
+    if (card){
+      card.animate([
+        { transform: 'rotate(0deg) scale(1)' },
+        { transform: 'rotate(2.6deg) scale(1.014)' },
+        { transform: 'rotate(-3deg) scale(1.014)' },
+        { transform: 'rotate(2deg) scale(1.009)' },
+        { transform: 'rotate(-1.3deg) scale(1.004)' },
+        { transform: 'rotate(0deg) scale(1)' }
+      ], { duration: 1900, easing: 'ease-in-out' });
+    }
+    for (let i = 0; i < 3; i++){
+      const el = put(i, 'left:50%;top:48%;width:300px;height:300px;margin:-150px 0 0 -150px', 'softring');
+      el.style.borderStyle = 'dashed';
+      fire(el, [
+        { opacity: 0, transform: 'rotate(0deg) scale(.35)' },
+        { opacity: .8, offset: .3 },
+        { opacity: 0, transform: 'rotate(420deg) scale(1.5)' }
+      ], { duration: 1900, delay: i * 140, easing: 'linear', fill: 'both' });
+    }
+    poolCleanup(2600);
+  },
+
+  /* 23 成为一体：两块幕布从两侧合拢 */
+  23: () => {
+    const a = put(0, 'left:0;top:0;width:50%;height:100%', 'panel');
+    const b = put(1, 'left:50%;top:0;width:50%;height:100%', 'panel');
+    fire(a, [{ opacity: 0, transform: 'translateX(-100%)' },
+             { opacity: 1, transform: 'translateX(0)', offset: .45 },
+             { opacity: 0, transform: 'translateX(0)' }],
+         { duration: 1500, easing: 'cubic-bezier(.5,0,.2,1)', fill: 'both' });
+    fire(b, [{ opacity: 0, transform: 'translateX(100%)' },
+             { opacity: 1, transform: 'translateX(0)', offset: .45 },
+             { opacity: 0, transform: 'translateX(0)' }],
+         { duration: 1500, easing: 'cubic-bezier(.5,0,.2,1)', fill: 'both' });
+    poolCleanup(2200);
+  },
+
+  /* 30 我将执行指令：一枚巨大的执行标记砸下来 */
+  30: () => {
+    const el = put(0, 'left:50%;top:50%;width:220px;height:220px;margin:-110px 0 0 -110px', 'x');
+    fire(el, [
+      { opacity: 0, transform: 'scale(3.6) rotate(-14deg)' },
+      { opacity: 1, transform: 'scale(1) rotate(0deg)', offset: .28 },
+      { opacity: 1, transform: 'scale(1)', offset: .7 },
+      { opacity: 0, transform: 'scale(1.5)' }
+    ], { duration: 1200, easing: 'cubic-bezier(.2,1.5,.4,1)', fill: 'both' });
+    shakeCard(5);
+    poolCleanup(1800);
+  },
+
+  /* 32 在这奇异的模拟里：铁栏一根根落下 */
+  32: () => {
+    for (let i = 0; i < 8; i++){
+      const el = put(i, 'left:' + (8 + i * 11.5) + '%;top:0;width:2.4vw;height:100%', 'jail');
+      fire(el, [
+        { opacity: 0, transform: 'translateY(-100%) scaleY(.4)', transformOrigin: 'top' },
+        { opacity: .95, transform: 'translateY(0) scaleY(1)', offset: .3 },
+        { opacity: .95, transform: 'translateY(0)', offset: .72 },
+        { opacity: 0, transform: 'translateY(0)' }
+      ], { duration: 1800, delay: i * 70, easing: 'cubic-bezier(.2,1,.3,1)', fill: 'both' });
+    }
+    poolCleanup(2900);
+  },
+
+  /* 41-42 切换我的性别 / 从女到男：一条色带横扫过去，把画面刷成另一种色调 */
+  41: () => {
+    const el = put(0, 'left:-30%;top:0;width:30%;height:100%', '');
+    el.style.background = 'linear-gradient(90deg,transparent,var(--accent-dim),transparent)';
+    el.style.filter = 'blur(12px)';
+    fire(el, [
+      { opacity: 0, transform: 'translateX(0)' },
+      { opacity: 1, offset: .18 },
+      { opacity: 1, transform: 'translateX(430%)', offset: .82 },
+      { opacity: 0, transform: 'translateX(430%)' }
+    ], { duration: 1100, easing: 'cubic-bezier(.5,0,.3,1)', fill: 'both' });
+    poolCleanup(1700);
+  },
+
+  /* 53-57 你走了 ×5：页面一级一级暗下去 */
+  53: (h, i) => {
+    const step = { 53: .10, 54: .22, 55: .35, 56: .50, 57: .66 }[i] || .1;
+    fx().dark.animate([{ opacity: 0 }, { opacity: step }],
+      { duration: 900, easing: 'ease-out', fill: 'both' });
+  },
+
+  /* 58 你离我而去 在孤独之中：只剩一束聚光 */
+  58: (h) => {
+    fx().dark.animate([{ opacity: 0 }, { opacity: .62 }],
+      { duration: 700, easing: 'ease-out', fill: 'both' });
+    fxPunch(h, 0);
+  },
+
+  /* 63 与神作对：剧烈震动 */
+  63: () => { shakeCard(9); fxPunch(.9, .3); },
+
+  /* 64 你传给我的是非法参数：红色错误条 + 硬震 */
+  64: () => {
+    fx().bars.animate([
+      { opacity: 0, transform: 'translateY(0) scaleY(1)' },
+      { opacity: .95, transform: 'translateY(0) scaleY(1.14)', offset: .18 },
+      { opacity: 0, transform: 'translateY(0) scaleY(1)' }
+    ], { duration: 900, easing: 'steps(2, end)' });
+    shakeCard(7);
+  },
+
+  /* 65-67 EXECUTION：X 齐射 + 红幕 + 连续抖动 */
+  65: (h) => {
+    for (let i = 0; i < 20; i++){
+      const el = put(i, 'left:' + (5 + Math.random() * 88) + '%;top:' + (6 + Math.random() * 82) +
+        '%;width:34px;height:34px', 'x');
+      fire(el, [
+        { opacity: 0, transform: 'scale(2.4)' },
+        { opacity: 1, transform: 'scale(1)', offset: .2 },
+        { opacity: 0, transform: 'scale(.7)' }
+      ], { duration: 520, delay: i * 45, easing: 'ease-out', fill: 'both' });
+    }
+    shakeCard(11);
+    fxPunch(h, .5);
+    poolCleanup(1900);
+  },
+
+  /* 68 一二三四五六：六个巨大的数字依次砸在画面中央 */
+  68: () => {
+    for (let i = 0; i < 6; i++){
+      const el = put(i, 'left:50%;top:50%;width:200px;height:100px;margin:-50px 0 0 -100px', 'num');
+      el.textContent = String(i + 1);
+      fire(el, [
+        { opacity: 0, transform: 'scale(2.6)' },
+        { opacity: 1, transform: 'scale(1)', offset: .22 },
+        { opacity: 1, transform: 'scale(1)', offset: .68 },
+        { opacity: 0, transform: 'scale(.84)' }
+      ], { duration: 520, delay: i * 200, easing: 'cubic-bezier(.2,1.4,.4,1)', fill: 'both' });
+    }
+    poolCleanup(2200);
+  },
+
+  /* 71 给所有人赐予死刑：X 像雨一样落下来 */
+  71: () => {
+    for (let i = 0; i < 22; i++){
+      const el = put(i, 'left:' + (3 + Math.random() * 92) + '%;top:0;width:26px;height:26px', 'x');
+      fire(el, [
+        { opacity: 0, transform: 'translateY(-20vh) rotate(-30deg)' },
+        { opacity: 1, offset: .3 },
+        { opacity: 1, transform: 'translateY(88vh) rotate(20deg)', offset: .92 },
+        { opacity: 0 }
+      ], { duration: 1200, delay: Math.random() * 500, easing: 'cubic-bezier(.4,0,.8,1)', fill: 'both' });
+    }
+    shakeCard(6);
+    poolCleanup(2200);
+  },
+
+  /* 79 我学会了如何正确地爱：一次心跳 */
+  79: () => {
+    for (let i = 0; i < 2; i++){
+      const el = put(i, 'left:50%;top:46%;width:220px;height:220px;margin:-110px 0 0 -110px', 'ring');
+      fire(el, [
+        { opacity: 0, transform: 'scale(.1)' },
+        { opacity: .9, transform: 'scale(1.6)', offset: .16 },
+        { opacity: 0, transform: 'scale(2.6)' }
+      ], { duration: 1100, delay: i * 300, easing: 'cubic-bezier(.1,.8,.3,1)', fill: 'both' });
+    }
+    const card = document.querySelector('.card.active');
+    if (card) card.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.012)' }, { transform: 'scale(1)' }],
+      { duration: 700, easing: 'ease-in-out' });
+    poolCleanup(2100);
+  },
+
+  /* 85 我仍被困 在爱之中：铁栏从两侧合拢锁死 */
+  85: () => {
+    for (let i = 0; i < 6; i++){
+      const left = i < 3;
+      const el = put(i, 'top:0;width:2.2vw;height:100%;' + (left ? 'left:' + (i * 9) + '%' : 'right:' + ((i - 3) * 9) + '%'), 'jail');
+      fire(el, [
+        { opacity: 0, transform: 'translateX(' + (left ? '-140%' : '140%') + ')' },
+        { opacity: .95, transform: 'translateX(0)', offset: .4 },
+        { opacity: .95, transform: 'translateX(0)', offset: .8 },
+        { opacity: 0, transform: 'translateX(0)' }
+      ], { duration: 2000, delay: i * 80, easing: 'cubic-bezier(.3,0,.2,1)', fill: 'both' });
+    }
+    poolCleanup(3200);
+  },
+
+  /* 86 最后一声 EXECUTION：白闪之后一切沉入黑暗 */
+  86: (h) => {
+    fx().flash.animate([
+      { opacity: 0 }, { opacity: 1, offset: .06 }, { opacity: .2, offset: .35 },
+      { opacity: .9, offset: .5 }, { opacity: 0 }
+    ], { duration: 1600, easing: 'ease-out' });
+    fx().dark.animate([
+      { opacity: 0 }, { opacity: 0, offset: .55 }, { opacity: .85 }
+    ], { duration: 2600, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'both' });
+  },
+
+  /* ── 以下为按歌词逐句编排的补充演出 ── */
+
+  /* 02 记得装备好绝缘护具：一层护盾从中心撑开 */
+  2: () => {
+    for (let i = 0; i < 3; i++){
+      const el = put(i, 'left:50%;top:46%;width:200px;height:200px;margin:-100px 0 0 -100px', 'ring');
+      fire(el, [{ opacity: 0, transform: 'scale(.3)' },
+                { opacity: .85, offset: .25 },
+                { opacity: 0, transform: 'scale(3.2)' }],
+           { duration: 1200, delay: i * 170, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'both' });
+    }
+    poolCleanup(2000);
+  },
+
+  /* 06 INITIALIZATION：一条进度条把屏幕填满 */
+  6: () => {
+    const bar = put(0, 'left:0;top:49%;width:100%;height:3px;transform-origin:left center', 'stream');
+    fire(bar, [{ transform: 'scaleX(0)', opacity: 1 },
+               { transform: 'scaleX(1)', opacity: 1, offset: .78 },
+               { transform: 'scaleX(1)', opacity: 0 }],
+         { duration: 1100, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'both' });
+    const t = put(1, 'left:50%;top:52%;width:460px;height:34px;margin-left:-230px;text-align:center', 'num');
+    t.style.font = '600 15px/34px var(--mono)';
+    t.textContent = 'INITIALIZING…';
+    fire(t, [{ opacity: 0 }, { opacity: 1, offset: .2 }, { opacity: 1, offset: .8 }, { opacity: 0 }],
+         { duration: 1100, fill: 'both' });
+    poolCleanup(1700);
+  },
+
+  /* 09 如果我是一组点：散点出现，再被一条线连起来 */
+  9: () => {
+    const pts = [[10,26],[24,64],[38,38],[52,72],[66,30],[80,60],[92,42],[16,44],[45,22],[71,78],[30,30],[86,24]];
+    pts.forEach((p, i) => {
+      const el = put(i, 'left:' + p[0] + '%;top:' + p[1] + '%;width:7px;height:7px;' +
+        'border-radius:50%;background:var(--accent)', '');
+      fire(el, [{ opacity: 0, transform: 'scale(0)' },
+                { opacity: 1, transform: 'scale(1)', offset: .3 },
+                { opacity: 1, transform: 'scale(1)', offset: .78 },
+                { opacity: 0 }],
+           { duration: 1600, delay: i * 55, easing: 'ease-out', fill: 'both' });
+    });
+    const line = put(12, 'left:8%;top:47%;width:84%;height:1px;transform-origin:left center', 'stream');
+    line.style.height = '1px';
+    fire(line, [{ transform: 'scaleX(0)', opacity: 0 },
+                { transform: 'scaleX(0)', opacity: .9 },
+                { transform: 'scaleX(1)', opacity: .9, offset: .6 },
+                { transform: 'scaleX(1)', opacity: 0 }],
+         { duration: 1500, delay: 500, easing: 'ease-in-out', fill: 'both' });
+    poolCleanup(2500);
+  },
+
+  /* 10 我将献给你我的次元：三层线框方块转起来 */
+  10: () => {
+    for (let i = 0; i < 3; i++){
+      const s = 90 + i * 60;
+      const el = put(i, 'left:50%;top:48%;width:' + s + 'px;height:' + s + 'px;margin:' +
+        (-s / 2) + 'px 0 0 ' + (-s / 2) + 'px;border:1.5px solid var(--accent)', '');
+      fire(el, [{ opacity: 0, transform: 'rotate(0deg) scale(.5)' },
+                { opacity: .9, transform: 'rotate(90deg) scale(1)', offset: .4 },
+                { opacity: 0, transform: 'rotate(200deg) scale(1.15)' }],
+           { duration: 1600, delay: i * 120, easing: 'cubic-bezier(.3,.6,.3,1)', fill: 'both' });
+    }
+    poolCleanup(2400);
+  },
+
+  /* 12 我将献给你我的圆周：一道弧线扫过整整一圈 */
+  12: () => {
+    const el = put(0, 'left:50%;top:46%;width:280px;height:280px;margin:-140px 0 0 -140px', 'ring');
+    el.style.borderWidth = '3px';
+    el.style.borderTopColor = 'transparent';
+    el.style.borderRightColor = 'transparent';
+    fire(el, [{ opacity: 0, transform: 'rotate(0deg)' },
+              { opacity: 1, offset: .15 },
+              { opacity: 1, transform: 'rotate(360deg)', offset: .8 },
+              { opacity: 0 }],
+         { duration: 1500, easing: 'cubic-bezier(.4,0,.3,1)', fill: 'both' });
+    poolCleanup(2200);
+  },
+
+  /* 16 你便可以成为我的极限：一个点不断逼近那条虚线 */
+  16: () => {
+    const line = put(0, 'left:6%;top:26%;width:88%;height:0;border-top:1px dashed var(--accent-dim)', '');
+    fire(line, [{ opacity: 0 }, { opacity: 1, offset: .2 }, { opacity: 1, offset: .8 }, { opacity: 0 }],
+         { duration: 1800, fill: 'both' });
+    const dot = put(1, 'left:8%;top:26%;width:9px;height:9px;margin-top:-4px;border-radius:50%;' +
+      'background:var(--pink)', '');
+    dot.style.boxShadow = '0 0 18px var(--pink)';
+    fire(dot, [{ opacity: 0, transform: 'translateY(46vh)' },
+               { opacity: 1, offset: .1 },
+               { transform: 'translateY(46vh) translateX(58vw)', offset: .55 },
+               { transform: 'translateY(46vh) translateX(74vw)', offset: .8 },
+               { transform: 'translateY(46vh) translateX(82vw)' }],
+         { duration: 2000, easing: 'cubic-bezier(.5,0,.2,1)', fill: 'both' });
+    poolCleanup(2700);
+  },
+
+  /* 21 我们可以穿越时空：一条时间轴带着刻度横扫过去 */
+  21: () => {
+    const axis = put(0, 'left:0;top:50%;width:100%;height:2px;transform-origin:right center', 'stream');
+    fire(axis, [{ transform: 'scaleX(0)', opacity: 0 }, { transform: 'scaleX(1)', opacity: 1, offset: .5 },
+                { transform: 'scaleX(1)', opacity: 0 }],
+         { duration: 1500, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'both' });
+    for (let i = 0; i < 12; i++){
+      const el = put(i + 1, 'left:' + (5 + i * 8) + '%;top:50%;width:1px;height:14px;' +
+        'margin-top:-7px;background:var(--accent-dim)', '');
+      fire(el, [{ opacity: 0, transform: 'scaleY(0)' }, { opacity: 1, transform: 'scaleY(1)', offset: .3 },
+                { opacity: 0 }],
+           { duration: 900, delay: 260 + i * 70, easing: 'ease-out', fill: 'both' });
+    }
+    poolCleanup(2400);
+  },
+
+  /* 24 深深入髓：一圈圈向内心塌陷 */
+  24: () => {
+    for (let i = 0; i < 6; i++){
+      const el = put(i, 'left:50%;top:48%;width:420px;height:420px;margin:-210px 0 0 -210px', 'softring');
+      fire(el, [{ opacity: 0, transform: 'scale(1.6)' },
+                { opacity: .9, offset: .2 },
+                { opacity: 0, transform: 'scale(.06)' }],
+           { duration: 1500, delay: i * 130, easing: 'cubic-bezier(.5,0,.3,1)', fill: 'both' });
+    }
+    poolCleanup(2500);
+  },
+
+  /* 28 成为你唯一的满足：一条计量条一路填满 */
+  28: () => {
+    const track = put(0, 'left:14%;top:48%;width:72%;height:8px;border:1px solid var(--accent-dim);' +
+      'border-radius:99px', '');
+    fire(track, [{ opacity: 0 }, { opacity: 1, offset: .15 }, { opacity: 1, offset: .85 }, { opacity: 0 }],
+         { duration: 1600, fill: 'both' });
+    const fill = put(1, 'left:15%;top:calc(48% + 2.4px);width:70%;height:3px;border-radius:99px;' +
+      'transform-origin:left center;background:var(--accent)', '');
+    fire(fill, [{ transform: 'scaleX(0)', opacity: 1 },
+                { transform: 'scaleX(1)', opacity: 1, offset: .7 },
+                { transform: 'scaleX(1)', opacity: 0 }],
+         { duration: 1600, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'both' });
+    poolCleanup(2200);
+  },
+
+  /* 29 如果我能够让你开心：一道笑弧画出来 */
+  29: () => {
+    const el = put(0, 'left:50%;top:44%;width:260px;height:260px;margin:-130px 0 0 -130px', 'ring');
+    el.style.borderTopColor = 'transparent';
+    el.style.borderLeftColor = 'transparent';
+    el.style.borderRightColor = 'transparent';
+    el.style.transform = 'rotate(180deg)';
+    fire(el, [{ opacity: 0, transform: 'rotate(180deg) scale(.4)' },
+              { opacity: 1, transform: 'rotate(180deg) scale(1)', offset: .5 },
+              { opacity: 0, transform: 'rotate(180deg) scale(1.1)' }],
+         { duration: 1400, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'both' });
+    poolCleanup(2000);
+  },
+
+  /* 38 我将为你咕噜咕噜：整张卡轻微地、持续地震 */
+  38: () => {
+    const card = document.querySelector('.card.active');
+    if (card) card.animate(
+      [{ transform: 'translateY(0)' }, { transform: 'translateY(1.3px)' }, { transform: 'translateY(0)' }],
+      { duration: 68, iterations: 22, easing: 'linear' });
+  },
+
+  /* 39 如果我是唯一的神：光环从标题处推开 */
+  39: () => {
+    for (let i = 0; i < 16; i++){
+      const a = (i / 16) * Math.PI * 2;
+      const el = put(i, 'left:50%;top:14%;width:2px;height:26px;transform-origin:center top;' +
+        'background:var(--amber)', '');
+      el.style.transform = 'rotate(' + (a * 180 / Math.PI) + 'deg)';
+      fire(el, [{ opacity: 0, transform: 'rotate(' + (a * 180 / Math.PI) + 'deg) scaleY(.2)' },
+                { opacity: .95, transform: 'rotate(' + (a * 180 / Math.PI) + 'deg) scaleY(1)', offset: .35 },
+                { opacity: 0, transform: 'rotate(' + (a * 180 / Math.PI) + 'deg) scaleY(1)' }],
+           { duration: 1300, delay: i * 22, easing: 'ease-out', fill: 'both' });
+    }
+    poolCleanup(2100);
+  },
+
+  /* 43 只做想做的事情：一条随手涂鸦的线划过整屏 */
+  43: () => {
+    const el = put(0, 'left:0;top:50%;width:100%;height:2px;transform-origin:left center', 'stream');
+    fire(el, [{ transform: 'scaleX(0) translateY(0) rotate(0deg)', opacity: 0 },
+              { opacity: 1, offset: .1 },
+              { transform: 'scaleX(.5) translateY(-14vh) rotate(-6deg)', offset: .4 },
+              { transform: 'scaleX(.8) translateY(16vh) rotate(9deg)', offset: .7 },
+              { transform: 'scaleX(1) translateY(-4vh) rotate(-2deg)', offset: .92 },
+              { opacity: 0, transform: 'scaleX(1) translateY(-4vh)' }],
+         { duration: 2000, easing: 'cubic-bezier(.3,.5,.4,1)', fill: 'both' });
+    poolCleanup(2700);
+  },
+
+  /* 44 从早到晚：一轮日头划过整个屏幕顶端 */
+  44: () => {
+    const el = put(0, 'left:6%;top:10%;width:26px;height:26px;border-radius:50%;background:var(--amber)', '');
+    el.style.boxShadow = '0 0 34px var(--amber)';
+    fire(el, [{ opacity: 0, transform: 'translateY(120px) scale(.7)' },
+              { opacity: 1, transform: 'translateY(0) scale(1)', offset: .2 },
+              { opacity: 1, transform: 'translateX(42vw) translateY(-16px)', offset: .55 },
+              { opacity: 1, transform: 'translateX(80vw) translateY(6px)', offset: .85 },
+              { opacity: 0, transform: 'translateX(80vw) translateY(120px)' }],
+         { duration: 2400, easing: 'ease-in-out', fill: 'both' });
+    poolCleanup(3100);
+  },
+
+  /* 49 如果我能够感受到你的振动：一道波从中心荡开 */
+  49: () => {
+    for (let i = 0; i < 14; i++){
+      const el = put(i, 'left:' + (6 + i * 6.4) + '%;top:48%;width:6px;height:6px;border-radius:50%;' +
+        'background:var(--accent)', '');
+      const ph = (i / 14) * Math.PI * 4;
+      fire(el, [{ opacity: 0, transform: 'scale(.3) translateY(0)' },
+                { opacity: 1, transform: 'scale(1) translateY(' + (-Math.sin(ph) * 9) + 'vh)', offset: .3 },
+                { opacity: 1, transform: 'scale(1) translateY(' + (Math.sin(ph) * 9) + 'vh)', offset: .65 },
+                { opacity: 0, transform: 'scale(.3)' }],
+           { duration: 1700, delay: i * 20, easing: 'ease-in-out', fill: 'both' });
+    }
+    poolCleanup(2500);
+  },
+
+  /* 52 我终于变为完全：圆环合拢，咔哒一声 */
+  52: () => {
+    const el = put(0, 'left:50%;top:46%;width:240px;height:240px;margin:-120px 0 0 -120px', 'ring');
+    el.style.borderWidth = '3px';
+    fire(el, [{ opacity: 0, transform: 'scale(2.2) rotate(-90deg)' },
+              { opacity: 1, transform: 'scale(1) rotate(0deg)', offset: .42 },
+              { opacity: 1, transform: 'scale(1)', offset: .74 },
+              { opacity: 0, transform: 'scale(.9)' }],
+         { duration: 1400, easing: 'cubic-bezier(.2,1.2,.35,1)', fill: 'both' });
+    shakeCard(3);
+    poolCleanup(2000);
+  },
+
+  /* 60 消去所有无意义的碎片：碎片四散飞走 */
+  60: () => {
+    for (let i = 0; i < 18; i++){
+      const el = put(i, 'left:' + (12 + Math.random() * 76) + '%;top:' + (16 + Math.random() * 68) +
+        '%;width:' + (9 + Math.random() * 14) + 'px;height:10px;border:1px solid var(--accent)', '');
+      const dx = (Math.random() - .5) * 120, dy = (Math.random() - .5) * 90;
+      fire(el, [{ opacity: 0, transform: 'translate(0,0) rotate(0deg)' },
+                { opacity: .95, transform: 'translate(0,0) rotate(0deg)', offset: .15 },
+                { opacity: 0, transform: 'translate(' + dx + 'vw,' + dy + 'vh) rotate(' + (dx * 3) + 'deg)' }],
+           { duration: 1400, delay: i * 30, easing: 'cubic-bezier(.3,.1,.6,1)', fill: 'both' });
+    }
+    poolCleanup(2300);
+  },
+
+  /* 80 提问我吧：问号一个接一个浮起来 */
+  80: () => {
+    for (let i = 0; i < 9; i++){
+      const el = put(i, 'left:' + (10 + i * 10) + '%;top:58%;width:60px;height:70px;' +
+        'text-align:center;margin-left:-30px', 'num');
+      el.textContent = '?';
+      el.style.fontSize = '42px';
+      fire(el, [{ opacity: 0, transform: 'translateY(30px) scale(.6)' },
+                { opacity: 1, transform: 'translateY(0) scale(1)', offset: .35 },
+                { opacity: 1, transform: 'translateY(0) scale(1)', offset: .72 },
+                { opacity: 0, transform: 'translateY(-24px) scale(.9)' }],
+           { duration: 1500, delay: i * 75, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'both' });
+    }
+    poolCleanup(2600);
+  },
+
+  /* 81 只要是爱的问题我都能答对：对勾成排打下去 */
+  81: () => {
+    for (let i = 0; i < 12; i++){
+      const col = i % 6, row = (i / 6) | 0;
+      const el = put(i, 'left:' + (16 + col * 12) + '%;top:' + (34 + row * 16) + '%;' +
+        'width:22px;height:22px;border-left:3px solid var(--green);' +
+        'border-bottom:3px solid var(--green);transform:rotate(-45deg)', '');
+      fire(el, [{ opacity: 0, transform: 'rotate(-45deg) scale(.2)' },
+                { opacity: 1, transform: 'rotate(-45deg) scale(1)', offset: .3 },
+                { opacity: 1, transform: 'rotate(-45deg) scale(1)', offset: .78 },
+                { opacity: 0 }],
+           { duration: 1400, delay: i * 60, easing: 'cubic-bezier(.2,1.4,.4,1)', fill: 'both' });
+    }
+    poolCleanup(2400);
+  },
+
+  /* 82 就连爱的代数表达式我都知道：符号雨落下 */
+  82: () => {
+    const glyphs = ['x²', 'lim', 'dy', 'Σ', '∫', '±', '∞', 'θ', 'λ', '√', 'π', 'Δ'];
+    for (let i = 0; i < 12; i++){
+      const el = put(i, 'left:' + (5 + i * 8) + '%;top:0;width:60px;height:40px;' +
+        'text-align:center;margin-left:-30px', 'num');
+      el.textContent = glyphs[i];
+      el.style.fontSize = '26px';
+      el.style.color = 'var(--accent)';
+      fire(el, [{ opacity: 0, transform: 'translateY(-10vh)' },
+                { opacity: 1, offset: .25 },
+                { opacity: 1, transform: 'translateY(56vh)', offset: .8 },
+                { opacity: 0, transform: 'translateY(60vh)' }],
+           { duration: 1700, delay: i * 70, easing: 'cubic-bezier(.4,0,.7,1)', fill: 'both' });
+    }
+    poolCleanup(2600);
+  }
+};
+
+/* ---------- 持续状态：栏杆 / 隔离 / 恍惚 / 高潮色调 / 逐级压暗 ---------- */
+const PERSIST = {};
+[31, 32, 76, 77, 84, 85].forEach(n => PERSIST[n] = 'cage');
+[58, 83].forEach(n => PERSIST[n] = 'isolate');
+[47, 48].forEach(n => PERSIST[n] = 'trance');
+[65, 66, 67, 68, 69].forEach(n => PERSIST[n] = 'climax');
+[79, 80, 81, 82].forEach(n => PERSIST[n] = 'love');
+[53, 54, 55, 56, 57].forEach(n => PERSIST[n] = 'dim');
+
+let curPersist = null;
+function applyPersist(i){
+  const want = PERSIST[i] || null;
+  if (want === curPersist) return;
+  const prev = curPersist;
+  curPersist = want;
+  const F = fx();
+  const to = (el, o, dur) => el && el.animate([{ opacity: o }], { duration: dur || 460, fill: 'both' });
+
+  cageShow(want === 'cage');
+  to(F.veil,  want === 'isolate' ? 1 : 0, 560);
+  to(F.tint,  want === 'climax' ? .55 : want === 'love' ? .34 : 0, 560);
+  to(F.trance, want === 'trance' ? .9 : 0, 700);
+  if (want !== 'dim' && prev === 'dim') to(F.dark, 0, 420);
+  if (want === 'isolate') shakeCard(2);
+}
+
+/** 每句只演一次：同一个句号连续进入不重复播放 */
+let lastPerformed = -1;
+function perform(i, heat){
+  if (REDUCED || i === lastPerformed) return;
+  lastPerformed = i;
+  poolReset();
+  const fn = PERFORM[i + 1];
+  if (fn) fn(heat, i + 1);
+}
+
+/* ---------- 囚笼栏杆：困在模拟/困在爱里那几句，页面上真的落下栏杆 ---------- */
+const CAGE_LINES = new Set([31, 32, 76, 77, 84, 85]);
+let cageOn = false;
+
+function buildCage(){
+  const host = document.getElementById('cage');
+  if (!host || host._built) return host;
+  const COUNT = 9;
+  for (let i = 0; i < COUNT; i++){
+    const t = i / (COUNT - 1);                     // 0 → 1
+    const edge = Math.abs(t - .5) * 2;             // 0 中心 → 1 边缘
+    const w = 9 + edge * 9;                        // 边缘更粗，做出景深
+    const bar = document.createElement('i');
+    bar.style.left = (5 + t * 90) + '%';
+    bar.style.width = w + 'px';
+    bar.style.marginLeft = (-w / 2) + 'px';
+    bar.style.opacity = (0.82 + edge * 0.18).toFixed(2);
+    bar.style.zIndex = Math.round(edge * 10);
+    host.appendChild(bar);
+  }
+  host._built = true;
+  host._bars = [...host.querySelectorAll('i')];
+  return host;
+}
+
+function cageShow(on){
+  const host = buildCage();
+  if (!host || on === cageOn) return;
+  cageOn = on;
+  host.classList.toggle('on', on);
+  if (REDUCED) return;
+
+  const bars = host._bars, mid = (bars.length - 1) / 2;
+  bars.forEach((el, i) => {
+    const d = Math.abs(i - mid) * 26;              // 从中间往两边依次落下
+    el.animate(on
+      ? [{ transform: 'scaleY(0) translateY(-26px)', opacity: 0 },
+         { transform: 'scaleY(1) translateY(0)', opacity: 1 }]
+      : [{ transform: 'scaleY(1)', opacity: 1 },
+         { transform: 'scaleY(0) translateY(-18px)', opacity: 0 }],
+      { duration: on ? 560 : 320, delay: d,
+        easing: on ? 'cubic-bezier(.3,1.35,.5,1)' : 'ease-in', fill: 'both' });
+  });
+  host.querySelectorAll('b').forEach((el, i) => {
+    el.animate(on
+      ? [{ transform: 'scaleX(.3)', opacity: 0 }, { transform: 'scaleX(1)', opacity: 1 }]
+      : [{ transform: 'scaleX(1)', opacity: 1 }, { transform: 'scaleX(.4)', opacity: 0 }],
+      { duration: on ? 420 : 260, delay: on ? i * 70 : 0, easing: 'ease-out', fill: 'both' });
+  });
+  if (on) shakeCard(4);
+}
+
+/** 卡片入场：热度越高，推进感越强 */function cardEnter(el, heat, big){
   if (REDUCED) return;
   const from = big ? 'translateY(46px) scale(.955)' : 'translateY(18px) scale(.992)';
   el.animate([{ opacity: big ? 0 : .35, transform: from }, { opacity: 1, transform: 'none' }],
@@ -2375,6 +3209,10 @@ function setIndex(i, opts){
   if (kind) sceneFx(kind, heat);
   else if (opts.scroll !== false || i !== prevIdx) fxPunch(heat, heat - prevHeat);
   cardEnter(active, heat, !!kind);
+
+  // 按歌词内容的演出（一次性）+ 持续状态（栏杆 / 隔离 / 恍惚 / 色调）
+  perform(i, heat);
+  applyPersist(i + 1);
 
   typeEn(active.querySelector('.en'), LINES[i].en);
 
