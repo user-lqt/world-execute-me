@@ -85,13 +85,13 @@ body::after{
 /* ============ header ============ */
 header{
   position:relative;z-index:3;flex:0 0 auto;
-  display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;
-  padding:16px 26px 13px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  padding:12px 26px 10px;border-bottom:1px solid var(--line);
   background:linear-gradient(180deg,rgba(5,6,10,.94),rgba(5,6,10,.55));
   backdrop-filter:blur(9px);
   box-shadow:inset 0 -30px 60px -40px var(--accent);
 }
-h1{margin:0;font-size:clamp(17px,2.1vw,25px);font-weight:600;letter-spacing:.4px;white-space:nowrap}
+h1{margin:0;font-size:clamp(16px,1.7vw,21px);font-weight:600;letter-spacing:.4px;white-space:nowrap}
 h1 .w1{color:var(--violet)}
 h1 .p{color:var(--dim)}
 h1 .w2{color:var(--accent);text-shadow:0 0 calc(18px + var(--heat) * 34px) var(--accent-dim)}
@@ -99,7 +99,7 @@ h1 .arg{color:var(--amber)}
 h1 .semi{color:var(--pink)}
 h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);vertical-align:-2px;margin-left:2px;animation:blink 1.05s steps(1) infinite}
 @keyframes blink{50%{opacity:0}}
-.meta{font-size:12.5px;color:var(--dim);line-height:1.8}
+.meta{font-size:12.5px;color:var(--dim);line-height:1.8;display:none}
 .meta b{color:var(--cyan);font-weight:500}
 .meta.right{text-align:right}
 
@@ -118,9 +118,9 @@ h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);ve
 
 .card{
   position:relative;
-  display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.28fr);
-  gap:26px;
-  max-width:1340px;margin:0 auto 28px;padding:28px 26px 24px;
+  display:grid;grid-template-columns:minmax(0,.94fr) minmax(0,1.24fr);
+  gap:30px;
+  max-width:1500px;margin:0 auto 32px;padding:34px 32px 30px;
   border:1px solid var(--line);border-radius:16px;
   /* 卡片本身也被染上当前色调：深色底 + 一层随热度加深的颜色 */
   background:linear-gradient(158deg,#101624,#090c14);
@@ -151,12 +151,12 @@ h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);ve
 }
 .right.at-bottom::after{opacity:0}
 .en{
-  font-size:clamp(19px,2.3vw,31px);line-height:1.36;
-  margin:26px 0 9px;color:#eaf2ff;font-weight:600;letter-spacing:.2px;
+  font-size:clamp(22px,2.7vw,36px);line-height:1.34;
+  margin:0 0 10px;color:#eaf2ff;font-weight:600;letter-spacing:.1px;
   overflow-wrap:anywhere;                    /* 长句正常折行，超长单词也不至于溢出 */
-  text-shadow:0 0 30px rgba(110,231,255,.16);
+  text-shadow:0 0 calc(18px + var(--heat) * 30px) var(--accent-faint);
 }
-.zh{margin:0 0 18px;font-size:var(--fs-body);color:var(--dim);line-height:1.85;letter-spacing:.5px}
+.zh{margin:0 0 22px;font-size:var(--fs-body);color:var(--dim);line-height:1.85;letter-spacing:.5px}
 /* 注意：这里曾经有一条全局 .ch{animation:chIn…}（含 filter:blur + fill:both），
    它会把 blur(0px) 永久留在每个字符上，一个字符一层缓冲，直接拖垮整页。
    现在字符的显隐只由 .en .ch 的透明度过渡负责。 */
@@ -488,6 +488,11 @@ footer{
   .meta.right{text-align:left}
   .hint{display:none}
 }
+
+/* 只看内容时，把操作条降权：空闲 3 秒后隐退，任何输入立刻回来 */
+header,.audio-bar,footer{transition:opacity .5s ease}
+body.idle header,body.idle .audio-bar,body.idle footer{opacity:.14}
+body.idle header:hover,body.idle .audio-bar:hover,body.idle footer:hover{opacity:1}
 </style>
 </head>
 <body>
@@ -495,21 +500,14 @@ footer{
 <canvas id="bgc"></canvas>
 
 <header>
-  <div>
-    <h1><span class="w1">World</span><span class="p">.</span><span class="w2">execute</span><span class="p">(</span><span class="arg">me</span><span class="p">)</span><span class="semi">;</span><span class="caret"></span></h1>
-    <div class="meta" style="margin-top:6px">歌词 × 代码 · 逐句对照体验 &nbsp;|&nbsp; Mili ·《Miracle Milk》</div>
-  </div>
-  <div class="meta right">
-    86 句歌词 → 86 个 Java 模块<br>
-    载入音频后 <b>按时间轴自动同步</b> · 支持打点校准
-  </div>
+  <h1><span class="w1">World</span><span class="p">.</span><span class="w2">execute</span><span class="p">(</span><span class="arg">me</span><span class="p">)</span><span class="semi">;</span><span class="caret"></span></h1>
 </header>
 
 <div class="audio-bar">
   <canvas id="spec" width="240" height="26" hidden></canvas>
-  <button class="btn small" id="loadBtn">载入音频</button>
+  <button class="btn small" id="loadBtn" title="载入本地音频">载入音频</button>
   <input type="file" id="audioFile" accept="audio/*" hidden>
-  <span class="afile" id="afile">拖一个 mp3 / m4a / flac 到页面任意位置 · 原版时长会自动套用精确时间轴</span>
+  <span class="afile" id="afile"></span>
   <span class="spacer"></span>
   <button class="btn small" id="builtinBtn" title="LRCLIB 37237659 · Mili《Miracle Milk》212s">原版时间轴</button>
   <button class="btn small" id="lrcBtn">导入 LRC</button>
@@ -528,10 +526,9 @@ footer{
   <button class="btn" id="next" aria-label="下一句">▶▶</button>
   <div class="track" id="track" role="slider" aria-label="进度"><svg class="heatcurve" id="heatcurve" viewBox="0 0 86 20" preserveAspectRatio="none"><polyline id="heatline" points=""/></svg><div class="fill" id="fill"></div></div>
   <div class="counter"><b id="cur">01</b> / <span id="tot">00</span></div>
-  <button class="btn" id="mode">逐句模式</button>
-  <button class="btn" id="tap">打点</button>
-  <button class="btn" id="loop">单句循环</button>
-  <span class="hint">空格 播放/暂停 · ← → 切句 · T 打点 · [ ] 调偏移 · 滚轮浏览</span>
+  <button class="btn" id="mode" title="逐句 / 全文">逐句</button>
+  <button class="btn" id="tap" title="打点校准">打点</button>
+  <button class="btn" id="loop" title="单句循环">循环</button>
 </footer>
 
 <script>
@@ -2286,12 +2283,12 @@ function fxPunch(heat, delta){
   const power = Math.min(1, 0.16 + heat * 0.5 + Math.abs(delta || 0) * 1.6);
   F.flash.animate(
     [{ opacity: 0 }, { opacity: power * 0.4, offset: 0.12 }, { opacity: 0 }],
-    { duration: 360 + heat * 280, easing: 'ease-out' });
+    { duration: P(360 + heat * 280), easing: 'ease-out' });
   F.whip.animate(
     [{ transform: 'translateX(-45%)', opacity: 0 },
      { transform: 'translateX(25%)', opacity: power * 0.8, offset: 0.32 },
      { transform: 'translateX(310%)', opacity: 0 }],
-    { duration: 400 + heat * 260, easing: 'cubic-bezier(.3,0,.2,1)' });
+    { duration: P(400 + heat * 260), easing: 'cubic-bezier(.3,0,.2,1)' });
 }
 
 /** 幕间：整屏转场。不同幕有不同编排 */
@@ -2299,8 +2296,8 @@ function sceneFx(kind, heat){
   if (REDUCED) return;
   const F = fx();
   if (!F.flash) return;
-  const D = { boot: 1700, shock: 900, cage: 1100, trance: 1300,
-              doom: 1000, silence: 1400, final: 1500 }[kind] || 800;
+  const D = P({ boot: 1700, shock: 900, cage: 1100, trance: 1300,
+                doom: 1000, silence: 1400, final: 1500 }[kind] || 800);
 
   fxPunch(heat, 0.4);
 
@@ -2413,7 +2410,7 @@ function poolReset(){
     el.textContent = '';
   }
 }
-function poolCleanup(ms){ clearTimeout(poolTimer); poolTimer = setTimeout(poolReset, ms); }
+function poolCleanup(ms){ clearTimeout(poolTimer); poolTimer = setTimeout(poolReset, P(ms)); }
 
 /** 摆好一个池元素：css 直接写 left/top/width/height 等 */
 function put(i, css, cls){
@@ -2423,7 +2420,13 @@ function put(i, css, cls){
   el.style.cssText = css;
   return el;
 }
-function fire(el, frames, opts){ el._a = el.animate(frames, opts); return el; }
+function fire(el, frames, opts){
+  const o = Object.assign({}, opts);
+  if (o.duration != null) o.duration = P(o.duration);
+  if (o.delay != null) o.delay = P(o.delay);
+  el._a = el.animate(frames, o);
+  return el;
+}
 
 /** 屏幕轻微震动：只震当前卡，不碰那个近两万像素高的滚动容器 */
 function shakeCard(power){
@@ -2436,7 +2439,7 @@ function shakeCard(power){
     { transform: 'translate(' + (p * .8) + 'px,' + (-p * .5) + 'px) rotate(' + (p / 40) + 'deg)' },
     { transform: 'translate(' + (-p * .5) + 'px,' + (p * .3) + 'px)' },
     { transform: 'translate(0,0)' }
-  ], { duration: 90, iterations: 3, easing: 'linear' });
+  ], { duration: P(90), iterations: 3, easing: 'linear' });
 }
 
 /* ---------- 演出表：句号 → 编排 ---------- */
@@ -2448,7 +2451,7 @@ const PERFORM = {
       { opacity: 0, transform: 'scaleX(.15) scaleY(1)', transformOrigin: '0% 50%' },
       { opacity: .95, offset: .3 },
       { opacity: 0, transform: 'scaleX(1)' }
-    ], { duration: 1300, easing: 'cubic-bezier(.2,.9,.25,1)' });
+    ], { duration: P(1300), easing: 'cubic-bezier(.2,.9,.25,1)' });
   },
 
   /* 03 摆好棋子：24 枚方块落下来吸附到位 */
@@ -2531,7 +2534,7 @@ const PERFORM = {
       { opacity: 0 }, { opacity: .5, offset: .08 }, { opacity: .04, offset: .2 },
       { opacity: .42, offset: .34 }, { opacity: .03, offset: .48 },
       { opacity: .3, offset: .62 }, { opacity: 0 }
-    ], { duration: 900, easing: 'steps(1, end)' });
+    ], { duration: P(900), easing: 'steps(1, end)' });
   },
 
   /* 20 头晕目眩：整页模糊 + 卡片打转 + 螺旋环 */
@@ -2550,7 +2553,7 @@ const PERFORM = {
         { transform: 'rotate(2deg) scale(1.009)' },
         { transform: 'rotate(-1.3deg) scale(1.004)' },
         { transform: 'rotate(0deg) scale(1)' }
-      ], { duration: 1900, easing: 'ease-in-out' });
+      ], { duration: P(1900), easing: 'ease-in-out' });
     }
     for (let i = 0; i < 3; i++){
       const el = put(i, 'left:50%;top:48%;width:300px;height:300px;margin:-150px 0 0 -150px', 'softring');
@@ -2624,13 +2627,13 @@ const PERFORM = {
   53: (h, i) => {
     const step = { 53: .10, 54: .22, 55: .35, 56: .50, 57: .66 }[i] || .1;
     fx().dark.animate([{ opacity: 0 }, { opacity: step }],
-      { duration: 900, easing: 'ease-out', fill: 'both' });
+      { duration: P(900), easing: 'ease-out', fill: 'both' });
   },
 
   /* 58 你离我而去 在孤独之中：只剩一束聚光 */
   58: (h) => {
     fx().dark.animate([{ opacity: 0 }, { opacity: .62 }],
-      { duration: 700, easing: 'ease-out', fill: 'both' });
+      { duration: P(700), easing: 'ease-out', fill: 'both' });
     fxPunch(h, 0);
   },
 
@@ -2643,7 +2646,7 @@ const PERFORM = {
       { opacity: 0, transform: 'translateY(0) scaleY(1)' },
       { opacity: .95, transform: 'translateY(0) scaleY(1.14)', offset: .18 },
       { opacity: 0, transform: 'translateY(0) scaleY(1)' }
-    ], { duration: 900, easing: 'steps(2, end)' });
+    ], { duration: P(900), easing: 'steps(2, end)' });
     shakeCard(7);
   },
 
@@ -2705,7 +2708,7 @@ const PERFORM = {
     }
     const card = document.querySelector('.card.active');
     if (card) card.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.012)' }, { transform: 'scale(1)' }],
-      { duration: 700, easing: 'ease-in-out' });
+      { duration: P(700), easing: 'ease-in-out' });
     poolCleanup(2100);
   },
 
@@ -2729,10 +2732,10 @@ const PERFORM = {
     fx().flash.animate([
       { opacity: 0 }, { opacity: 1, offset: .06 }, { opacity: .2, offset: .35 },
       { opacity: .9, offset: .5 }, { opacity: 0 }
-    ], { duration: 1600, easing: 'ease-out' });
+    ], { duration: P(1600), easing: 'ease-out' });
     fx().dark.animate([
       { opacity: 0 }, { opacity: 0, offset: .55 }, { opacity: .85 }
-    ], { duration: 2600, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'both' });
+    ], { duration: P(2600), easing: 'cubic-bezier(.4,0,.2,1)', fill: 'both' });
   },
 
   /* ── 以下为按歌词逐句编排的补充演出 ── */
@@ -2893,7 +2896,7 @@ const PERFORM = {
     const card = document.querySelector('.card.active');
     if (card) card.animate(
       [{ transform: 'translateY(0)' }, { transform: 'translateY(1.3px)' }, { transform: 'translateY(0)' }],
-      { duration: 68, iterations: 22, easing: 'linear' });
+      { duration: P(68), iterations: 22, easing: 'linear' });
   },
 
   /* 39 如果我是唯一的神：光环从标题处推开 */
@@ -3051,7 +3054,7 @@ function applyPersist(i){
     const cur = parseFloat(el.style.opacity || '0');
     if (Math.abs(cur - o) < 0.01 && el._o === o) return;   // 目标没变就别新建动画
     el._o = o;
-    el.animate([{ opacity: o }], { duration: dur || 460, fill: 'both' });
+    el.animate([{ opacity: o }], { duration: P(dur || 460), fill: 'both' });
   };
 
   cageShow(want === 'cage');
@@ -3113,14 +3116,14 @@ function cageShow(on){
          { transform: 'scaleY(1) translateY(0)', opacity: 1 }]
       : [{ transform: 'scaleY(1)', opacity: 1 },
          { transform: 'scaleY(0) translateY(-18px)', opacity: 0 }],
-      { duration: on ? 560 : 320, delay: d,
+      { duration: P(on ? 560 : 320), delay: P(d),
         easing: on ? 'cubic-bezier(.3,1.35,.5,1)' : 'ease-in', fill: 'both' });
   });
   host.querySelectorAll('b').forEach((el, i) => {
     el.animate(on
       ? [{ transform: 'scaleX(.3)', opacity: 0 }, { transform: 'scaleX(1)', opacity: 1 }]
       : [{ transform: 'scaleX(1)', opacity: 1 }, { transform: 'scaleX(.4)', opacity: 0 }],
-      { duration: on ? 420 : 260, delay: on ? i * 70 : 0, easing: 'ease-out', fill: 'both' });
+      { duration: P(on ? 420 : 260), delay: on ? P(i * 70) : 0, easing: 'ease-out', fill: 'both' });
   });
   if (on) shakeCard(4);
 }
@@ -3129,14 +3132,14 @@ function cageShow(on){
   if (REDUCED) return;
   const from = big ? 'translateY(46px) scale(.955)' : 'translateY(18px) scale(.992)';
   el.animate([{ opacity: big ? 0 : .35, transform: from }, { opacity: 1, transform: 'none' }],
-             { duration: big ? 820 : 420, easing: 'cubic-bezier(.16,.9,.24,1)' });
+             { duration: P(big ? 820 : 420), easing: 'cubic-bezier(.16,.9,.24,1)' });
   if (heat > 0.88 && !big){          // 高潮段落每句带一下轻微震动
     el.animate([
       { transform: 'translate(0,0)' },
       { transform: 'translate(' + (-4 * heat).toFixed(1) + 'px,' + (2 * heat).toFixed(1) + 'px)' },
       { transform: 'translate(' + (3 * heat).toFixed(1) + 'px,' + (-2 * heat).toFixed(1) + 'px)' },
       { transform: 'translate(0,0)' }
-    ], { duration: 150, delay: 120, iterations: 2, easing: 'linear' });
+    ], { duration: P(150), delay: P(120), iterations: 2, easing: 'linear' });
   }
 }
 
@@ -3169,17 +3172,13 @@ cardsEl.innerHTML = LINES.map((l, i) => {
   return '<article class="card" data-i="' + i + '">'
     +   '<i class="runner"></i><i class="scan"></i>'
     +   '<div class="left">'
-    +     '<div class="idx"><b>' + String(i+1).padStart(2,'0') + '</b> / ' + N + '</div>'
     +     '<p class="en"></p>'
     +     '<p class="zh">' + esc(l.zh) + '</p>'
     +     '<div class="viz"><svg viewBox="0 0 ' + CW + ' ' + CH + '" preserveAspectRatio="xMidYMid meet">' + svgBody + '</svg></div>'
     +   '</div>'
     +   '<div class="right">'
-    +     '<div class="code-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>'
-    +       '<span class="fname">' + esc(l.file) + '</span><span class="lang">JAVA</span>'
-    +       '<span class="ln">L' + start + '–' + end + ' · ' + lines.length + ' 行</span>'
-    +       '<span class="tstamp" data-t="' + i + '"></span>'
-    +       '<button class="copy" data-copy="' + i + '">复制</button></div>'
+    +     '<div class="code-head"><span class="fname">' + esc(l.file) + '</span>'
+    +       '<button class="copy" data-copy="' + i + '" title="复制这段代码">⧉</button></div>'
     +     '<pre class="code" style="counter-reset: ln ' + start + '"><code>' + body + '</code></pre>'
     +   '</div>'
     + '</article>';
@@ -3291,7 +3290,7 @@ function setPlaying(on){
   if (on) timer = setInterval(() => {          // 无音频：按词长估时推进
     if (index >= N - 1){ setPlaying(false); return; }
     next();
-  }, 6200);
+  }, P(7200));
 }
 
 /* =========================================================
@@ -3470,8 +3469,7 @@ function startSync(){ if (!rafId) rafId = requestAnimationFrame(tick); }
 function onAudioReady(label){
   audioReady = true;
   specCanvas.hidden = false;
-  afileEl.textContent = label;
-  afileEl.classList.add('ok');
+  if (afileEl){ afileEl.textContent = label; afileEl.classList.add('ok'); }
 
   if (!loadTimeline() || !TS || TS.length !== N){
     if (Math.abs(audio.duration - BUILTIN.dur) < 6){
@@ -3746,6 +3744,17 @@ document.addEventListener('visibilitychange', () => {
   document.body.classList.toggle('page-hidden', bodyHidden);
 });
 
+/* 空闲 3.2 秒后把页头 / 音频条 / 页脚降权，只看内容；任何输入立刻回来 */
+let idleTimer = null;
+function wake(){
+  document.body.classList.remove('idle');
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => document.body.classList.add('idle'), 3200);
+}
+['mousemove','mousedown','keydown','wheel','touchstart','pointerdown'].forEach(ev =>
+  window.addEventListener(ev, wake, {passive:true}));
+wake();
+
 
 /* ---- 复制 ---- */
 cardsEl.addEventListener('click', e => {
@@ -3824,6 +3833,12 @@ stage.addEventListener('scroll', () => {
    3.5 动效层
    ========================================================= */
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+/**
+ * 全局节奏系数：所有动画时长、级联延迟、定时清理都乘这个数。
+ * 想整体放慢就调大（1 = 原速，1.6 = 慢 60%）。改一处即可，不用翻遍每个 animate。
+ */
+const PACE = 1.6;
+const P = ms => Math.round(ms * PACE);
 /* ?rec=1 录制模式：不提示 toast、不自动加载音频，画面由外部时钟推进（见 __seek） */
 const REC = new URLSearchParams(location.search).has('rec');
 const GLYPHS  = '01<>{}[]()/*+-=%$#@!?;:~^&|\\アカサタナハマヤラワ';
@@ -3838,7 +3853,7 @@ function typeEn(el, text){
   cancelAnimationFrame(el._raf);
 
   const chars = Array.from(text);
-  const PER = 14, HOLD = 170;                 // 每字符间隔 / 解码窗口
+  const PER = P(14), HOLD = P(170);           // 每字符间隔 / 解码窗口（受 PACE 控制）
   el.textContent = '';
   const spans = chars.map(ch => {
     const s = document.createElement('span');
@@ -3849,7 +3864,7 @@ function typeEn(el, text){
     return s;
   });
 
-  const total = (chars.length - 1) * PER + HOLD + 120;
+  const total = (chars.length - 1) * PER + HOLD + P(120);
   const t0 = performance.now();
   let frame = 0;
   const step = now => {
@@ -3926,7 +3941,7 @@ function typeCode(codeEl, charCount){
   }
   for (const c of chars) c.classList.add('hide');
 
-  const dur = Math.min(1500, Math.max(650, charCount * 2.2));
+  const dur = P(Math.min(1500, Math.max(650, charCount * 2.2)));
   const t0 = performance.now();
   let i = 0, head = null, fno = 0;
 
@@ -3946,7 +3961,7 @@ function typeCode(codeEl, charCount){
         if (pre && pre.closest('.card').classList.contains('active')){
           pre.scrollTo({ top: 0, behavior: 'smooth' });
         }
-      }, 600);
+      }, P(600));
     }
   };
   codeEl._typeRaf = requestAnimationFrame(frame);
@@ -4010,7 +4025,7 @@ function animateViz(card){
   const texts = [...svg.querySelectorAll('text')];
   // ---- 写阶段 ----
   const n = plan.length;
-  const stepMs = n > 60 ? 9 : n > 24 ? 16 : 26;
+  const stepMs = P(n > 60 ? 9 : n > 24 ? 16 : 26);
   plan.forEach((p, i) => {
     const el = p.el;
     if (el._draw) el._draw.cancel();
@@ -4022,14 +4037,14 @@ function animateViz(card){
       el.style.strokeDashoffset = p.len;
       const a = el.animate(
         [{ strokeDashoffset: p.len }, { strokeDashoffset: 0 }],
-        { duration: 760, delay, easing: 'cubic-bezier(.25,.8,.3,1)', fill: 'both' });
+        { duration: P(760), delay, easing: 'cubic-bezier(.25,.8,.3,1)', fill: 'both' });
       a.onfinish = () => {
         if (p.marching){
           el.style.strokeDasharray = '6 7';
           el.style.strokeDashoffset = '0';
           el._idle = el.animate(
             [{ strokeDashoffset: 0 }, { strokeDashoffset: -52 }],
-            { duration: 2600, iterations: Infinity, easing: 'linear' });
+            { duration: P(2600), iterations: Infinity, easing: 'linear' });
           if (card._idles) card._idles.push(el._idle);
         } else {
           el.style.strokeDasharray = '';
@@ -4041,13 +4056,13 @@ function animateViz(card){
       el._draw = a;
     } else if (p.spin || p.pulse){
       const b = el.animate([{ opacity: 0 }, { opacity: 1 }],
-        { duration: 420, delay, easing: 'ease-out', fill: 'both' });
+        { duration: P(420), delay, easing: 'ease-out', fill: 'both' });
       b.onfinish = () => { b.cancel(); el._draw = null; };
       el._draw = b;
     } else {
       const c = el.animate(
         [{ opacity: 0, transform: 'scale(.7)' }, { opacity: 1, transform: 'scale(1)' }],
-        { duration: 440, delay, easing: 'cubic-bezier(.2,.9,.25,1.25)', fill: 'both' });
+        { duration: P(440), delay, easing: 'cubic-bezier(.2,.9,.25,1.25)', fill: 'both' });
       c.onfinish = () => { c.cancel(); el._draw = null; };
       el._draw = c;
     }
@@ -4056,7 +4071,7 @@ function animateViz(card){
     if (el._draw) el._draw.cancel();
     const t = el.animate(
       [{ opacity: 0, transform: 'translateY(7px)' }, { opacity: 1, transform: 'none' }],
-      { duration: 420, delay: 220 + i * 45, easing: 'ease-out', fill: 'both' });
+      { duration: P(420), delay: P(220 + i * 45), easing: 'ease-out', fill: 'both' });
     t.onfinish = () => { t.cancel(); el._draw = null; };
     el._draw = t;
   });
