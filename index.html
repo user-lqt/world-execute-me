@@ -162,7 +162,7 @@ h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);ve
    现在字符的显隐只由 .en .ch 的透明度过渡负责。 */
 
 .viz{border:1px dashed rgba(110,231,255,.16);border-radius:12px;background:rgba(6,10,18,.62);padding:6px 8px}
-.viz svg{display:block;width:100%;height:auto}
+.viz svg{display:block;width:100%;height:auto;transform-origin:50% 50%}   /* 供"出框"缩放用 */
 .t-dim{fill:#5c6a82;font:11px var(--mono)}
 .f-dim{fill:#33455f}
 .f-cyan{fill:var(--accent)} .f-pink{fill:var(--pink)} .f-amber{fill:var(--amber)}
@@ -325,6 +325,30 @@ body.trance-on .fx-trance b:nth-child(2){
   animation-duration:15s;animation-direction:reverse;
 }
 @keyframes rot{to{transform:rotate(360deg)}}
+
+/* ── meta 层：把页面本身当成一台正在运行的模拟来呈现 ── */
+/* 取景框：画面像被圈在一台监视器里，边框随热度升温 */
+#frame{position:fixed;inset:9px;z-index:54;pointer-events:none;border-radius:3px;
+  border:1px solid var(--accent-faint);transition:border-color .6s}
+#frame i{position:absolute;width:15px;height:15px;
+  border:2px solid var(--accent-dim);transition:border-color .6s}
+#frame i:nth-child(1){left:-1px;top:-1px;border-right:0;border-bottom:0}
+#frame i:nth-child(2){right:-1px;top:-1px;border-left:0;border-bottom:0}
+#frame i:nth-child(3){left:-1px;bottom:-1px;border-right:0;border-top:0}
+#frame i:nth-child(4){right:-1px;bottom:-1px;border-left:0;border-top:0}
+body.climax #frame{border-color:var(--accent-dim);box-shadow:inset 0 0 90px -40px var(--accent-dim)}
+body.climax #frame i{border-color:var(--red)}
+/* 运行时读数：时间 / 行号 / 热度 —— 把「这是一段在跑的代码」直接摊开 */
+#hud{
+  position:fixed;top:11px;right:22px;z-index:57;pointer-events:none;
+  display:flex;gap:16px;align-items:baseline;transition:opacity .5s;
+  font-size:10.5px;letter-spacing:.11em;color:#4a5c74;
+  text-shadow:0 0 14px var(--accent-faint);
+}
+#hud b{color:var(--accent);font-weight:500}
+body.idle #hud{opacity:.45}
+body.climax #hud{color:#8d6470}
+body.climax #hud b{color:var(--red)}
 
 /* ── 演出层：按歌词内容编排的画面 ── */
 .fx-dark{position:absolute;inset:0;opacity:0;background:#000;pointer-events:none}
@@ -518,6 +542,8 @@ body.idle header:hover,body.idle .audio-bar:hover,body.idle footer:hover{opacity
 <main id="stage"><div id="cards"></div></main>
 
 <div id="cage" aria-hidden="true"><b class="cage-rail-top"></b><b class="cage-rail-bot"></b></div>
+<div id="frame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+<div id="hud" aria-hidden="true"><b id="hudT">t=0.00s</b><span id="hudL">LINE 01/86</span><span id="hudH">HEAT 0.14</span></div>
 <div id="fx" aria-hidden="true"><i class="fx-flash"></i><i class="fx-whip"></i><i class="fx-bars"></i><i class="fx-grid"></i><i class="fx-dark"></i><i class="fx-veil"></i><i class="fx-tint"></i><div class="fx-trance"><b></b><b></b></div><div class="fx-items"></div></div>
 
 <footer>
@@ -706,6 +732,36 @@ const VIZ = {
       + '<text x="285" y="96" class="t-dim" text-anchor="middle" style="font-size:15px">DC</text>'
       + '<path d="M176 90 h48 m-10 -8 l10 8 l-10 8" fill="none" class="s-amber" stroke-width="1.6"/>';
   },
+
+  /* 整流：交流正弦 → 桥式整流堆 → 脉动的直流。
+     17 句「切换我的电流」停在交流侧，18 句「从交流到直流」推到输出侧。 */
+  rectify(i){
+    const ac = [];
+    for (let x = 14; x <= 116; x += 2.5) ac.push([x, 94 - 25 * Math.sin((x - 14) / 16.4)]);
+    const dc = [];
+    for (let x = 288; x <= 388; x += 2.5) dc.push([x, 94 - 25 * Math.abs(Math.sin((x - 288) / 16.4))]);
+    // 桥堆：菱形 + 四个二极管三角（指向导通方向）
+    const T = (cx, cy, r) => '<path d="M' + (cx - 7) + ' ' + (cy - 5.5) + ' L' + (cx + 6) + ' ' + cy
+      + ' L' + (cx - 7) + ' ' + (cy + 5.5) + ' Z" class="f-cyan" opacity=".85" transform="rotate(' + r
+      + ' ' + cx + ' ' + cy + ')"/>';
+    const bridge =
+        '<path d="M200 42 L242 90 L200 138 L158 90 Z" fill="none" class="s-cyan" stroke-width="1.5"/>'
+      + T(220, 67, -39) + T(220, 113, 39) + T(180, 67, 39) + T(180, 113, -39)
+      + '<line x1="200" y1="42" x2="200" y2="24" class="s-dim" stroke-width="1.2"/>'
+      + '<line x1="200" y1="138" x2="200" y2="156" class="s-dim" stroke-width="1.2"/>'
+      + '<text x="222" y="26" class="t-dim">DC+</text>'
+      + '<text x="222" y="164" class="t-dim">DC−</text>'
+      + '<circle cx="200" cy="90" r="3" class="f-amber"/>';
+    const on = ((i || 17) % 2) === 1;      // 17 句读交流，18 句读直流
+    return '<line x1="14" y1="94" x2="388" y2="94" class="s-dim" stroke-width=".8" opacity=".4"/>'
+      + '<path d="' + poly(ac) + '" fill="none" class="s-cyan" stroke-width="2.4" opacity="' + (on ? 1 : .35) + '"/>'
+      + '<path d="' + poly(dc) + '" fill="none" class="s-pink" stroke-width="2.4" opacity="' + (on ? .35 : 1) + '"/>'
+      + bridge
+      + '<path d="M122 90 h30 m-9 -7 l9 7 l-9 7" fill="none" class="s-amber" stroke-width="1.5"/>'
+      + '<path d="M248 90 h34 m-9 -7 l9 7 l-9 7" fill="none" class="s-amber" stroke-width="1.5"/>'
+      + '<text x="14" y="34" class="t-dim">AC ~</text>'
+      + '<text x="348" y="34" class="t-dim">DC</text>';
+  },
   void(){
     return VIZ.doodle(3);        // 已停用，保留以防有旧数据引用；不再渲染 null 字样
   },
@@ -842,7 +898,11 @@ VIZ.gender = () => {
     + '<line x1="268" y1="108" x2="268" y2="146" class="s-pink" stroke-width="2.4"/>'
     + '<line x1="248" y1="128" x2="288" y2="128" class="s-pink" stroke-width="2.4"/>'
     + '<text x="268" y="85" class="t-dim" text-anchor="middle" style="font-size:15px">F</text>'
-    + '<path d="M186 112 h28 m-9 -8 l9 8 l-9 8" fill="none" class="s-amber" stroke-width="1.8"/>'
+    // 双向：上路 M → F，下路 F → M，两条独立的箭头
+    + '<path d="M186 104 h28" fill="none" class="s-amber" stroke-width="1.8"/>'
+    + '<path d="M206 97 l9 7 l-9 7" fill="none" class="s-amber" stroke-width="1.8"/>'
+    + '<path d="M214 124 h-28" fill="none" class="s-amber" stroke-width="1.8"/>'
+    + '<path d="M194 117 l-9 7 l9 7" fill="none" class="s-amber" stroke-width="1.8"/>'
     + '<text x="132" y="172" class="t-dim" text-anchor="middle">chromosome().swap()</text>'
     + '<text x="268" y="172" class="t-dim" text-anchor="middle">phenotype().rebuild()</text>';
 };
@@ -850,19 +910,34 @@ VIZ.gender = () => {
 /* S ⇄ M —— 切换角色（链条 + 双向箭头）。注意别叫 power，
    那会覆盖上面第 01 句的“电源线”图形 */
 VIZ.role = () => {
-  let s = '';
+  // 链条：每节加一个流向标记，两端各挂一个箭头
+  let chain = '';
   for (let k = 0; k < 5; k++){
-    s += '<ellipse cx="' + (124 + k * 38) + '" cy="112" rx="17" ry="10" fill="none" class="s-violet" stroke-width="2"/>';
+    const x = 124 + k * 38;
+    chain += '<ellipse cx="' + x + '" cy="122" rx="17" ry="10" fill="none" class="s-violet" stroke-width="2"/>';
+    chain += '<circle cx="' + x + '" cy="122" r="2.2" class="f-violet" opacity="' + (0.35 + k * 0.13).toFixed(2) + '"/>';
   }
-  return s
-    + '<circle cx="92" cy="70" r="27" fill="none" class="s-cyan" stroke-width="2.4"/>'
-    + '<text x="92" y="78" class="t-dim" text-anchor="middle" style="font-size:17px">S</text>'
-    + '<circle cx="308" cy="70" r="27" fill="none" class="s-pink" stroke-width="2.4"/>'
-    + '<text x="308" y="78" class="t-dim" text-anchor="middle" style="font-size:17px">M</text>'
-    + '<path d="M130 42 h140" class="s-amber" stroke-width="1.6" fill="none"/>'
-    + '<path d="M260 34 l10 8 l-10 8" fill="none" class="s-amber" stroke-width="1.6"/>'
-    + '<path d="M140 50 l-10 -8 l10 -8" fill="none" class="s-amber" stroke-width="1.6"/>'
-    + '<text x="200" y="172" class="t-dim" text-anchor="middle">role.switchTo(inverse())</text>';
+  // 权力标尺：从 S 端到 M 端，刻度越来越密
+  let ruler = '<line x1="66" y1="156" x2="334" y2="156" class="s-dim" stroke-width="1"/>';
+  for (let k = 0; k <= 10; k++){
+    const x = 66 + k * 26.8;
+    const h = 4 + Math.abs(k - 5) * 1.5;
+    ruler += '<line x1="' + x.toFixed(1) + '" y1="156" x2="' + x.toFixed(1) + '" y2="' + (156 + h).toFixed(1)
+          + '" class="s-dim" stroke-width="1"/>';
+  }
+  ruler += '<text x="66" y="176" class="t-dim">dom</text>'
+        + '<text x="334" y="176" class="t-dim" text-anchor="end">sub</text>';
+  return chain + ruler
+    + '<circle cx="92" cy="64" r="27" fill="none" class="s-cyan" stroke-width="2.4"/>'
+    + '<text x="92" y="72" class="t-dim" text-anchor="middle" style="font-size:17px">S</text>'
+    + '<circle cx="308" cy="64" r="27" fill="none" class="s-pink" stroke-width="2.4"/>'
+    + '<text x="308" y="72" class="t-dim" text-anchor="middle" style="font-size:17px">M</text>'
+    // 双向大箭头：上 S→M，下 M→S
+    + '<path d="M124 36 h152" class="s-amber" stroke-width="1.8" fill="none"/>'
+    + '<path d="M266 28 l10 8 l-10 8" fill="none" class="s-amber" stroke-width="1.8"/>'
+    + '<path d="M276 50 h-152" class="s-amber" stroke-width="1.8" fill="none"/>'
+    + '<path d="M134 42 l-10 8 l10 8" fill="none" class="s-amber" stroke-width="1.8"/>'
+    + '<text x="200" y="94" class="t-dim" text-anchor="middle">role.switchTo(inverse())</text>';
 };
 
 /* if / then —— 条件判定，TRUE 分支按行号左右交替 */
@@ -1309,7 +1384,7 @@ public static double limit(DoubleUnaryOperator f, double target, double eps) {
     throw new ArithmeticException("does not converge to you");
 }`),
 
-L("Switch my current","切换我的电流","switch","Current.java",
+L("Switch my current","切换我的电流","rectify","Current.java",
 `public enum Current { AC, DC }
 
 public final class CircuitBreaker {
@@ -1327,7 +1402,7 @@ public final class CircuitBreaker {
     }
 }`),
 
-L("To AC to DC","从交流到直流","switch","Current.java",
+L("To AC to DC","从交流到直流","rectify","Current.java",
 `Thread.ofVirtual().name("current-loop").start(() -> {
     for (Current c : List.of(DC, AC)) {            // 从直流到交流，从交流到直流
         breaker.switchCurrentTo(c);
@@ -2422,8 +2497,12 @@ function put(i, css, cls){
 }
 function fire(el, frames, opts){
   const o = Object.assign({}, opts);
-  if (o.duration != null) o.duration = P(o.duration);
-  if (o.delay != null) o.delay = P(o.delay);
+  const raw = !!o.raw;                       // raw: 不乘 PACE，用于必须卡准音乐的演出
+  delete o.raw;
+  if (!raw){
+    if (o.duration != null) o.duration = P(o.duration);
+    if (o.delay != null) o.delay = P(o.delay);
+  }
   el._a = el.animate(frames, o);
   return el;
 }
@@ -2528,13 +2607,31 @@ const PERFORM = {
     poolCleanup(3200);
   },
 
-  /* 17-18 切换电流 / 从交流到直流：接触不良般地闪烁 */
-  17: () => {
-    fx().flash.animate([
+  /* 17-18 切换电流 / 从交流到直流：一列电流从左往右推进，
+     过桥堆之前上下摆动（交流），过桥堆之后只朝一边鼓（直流） */
+  17: (h) => {
+    const F = fx();
+    for (let i = 0; i < 15; i++){
+      const x = 5 + i * 6.4;
+      const ac = x < 46;                       // 桥堆在画面中央
+      const ph = i * 1.15;
+      const dy = ac ? -Math.sin(ph) * 26 : -Math.abs(Math.sin(ph)) * 26;
+      const el = put(i, 'left:' + x + '%;top:50%;width:9px;height:9px;border-radius:50%;' +
+        'background:' + (ac ? 'var(--accent)' : 'var(--pink)') +
+        ';box-shadow:0 0 14px ' + (ac ? 'var(--accent-dim)' : 'var(--pink)'), '');
+      fire(el, [
+        { opacity: 0, transform: 'translateY(0)' },
+        { opacity: 1, offset: .16 },
+        { opacity: 1, transform: 'translateY(' + dy.toFixed(1) + 'px)', offset: .58 },
+        { opacity: 0, transform: 'translateY(' + (dy * .55).toFixed(1) + 'px)' }
+      ], { duration: 1300, delay: i * 85, easing: 'cubic-bezier(.4,0,.3,1)', fill: 'both' });
+    }
+    F.flash.animate([
       { opacity: 0 }, { opacity: .5, offset: .08 }, { opacity: .04, offset: .2 },
       { opacity: .42, offset: .34 }, { opacity: .03, offset: .48 },
       { opacity: .3, offset: .62 }, { opacity: 0 }
     ], { duration: P(900), easing: 'steps(1, end)' });
+    poolCleanup(15 * 85 + 1300 + 200);
   },
 
   /* 20 头晕目眩：整页模糊 + 卡片打转 + 螺旋环 */
@@ -2666,19 +2763,24 @@ const PERFORM = {
     poolCleanup(1900);
   },
 
-  /* 68 一二三四五六：六个巨大的数字依次砸在画面中央 */
+  /* 68 一二三四五六：六个数字卡着歌里报数的时间点砸下来。
+     这一句在歌里占 2.62s（158.72→161.34），六个数字正好每 430ms 一个，
+     所以用 raw 绕开 PACE —— 变速全局节奏时这里必须钉死在音乐上。 */
   68: () => {
+    const STEP = 430, HOLD = 460;
     for (let i = 0; i < 6; i++){
-      const el = put(i, 'left:50%;top:50%;width:200px;height:100px;margin:-50px 0 0 -100px', 'num');
+      const el = put(i, 'left:50%;top:50%;width:220px;height:110px;margin:-55px 0 0 -110px', 'num');
       el.textContent = String(i + 1);
+      el.style.fontSize = '96px';
       fire(el, [
-        { opacity: 0, transform: 'scale(2.6)' },
-        { opacity: 1, transform: 'scale(1)', offset: .22 },
-        { opacity: 1, transform: 'scale(1)', offset: .68 },
-        { opacity: 0, transform: 'scale(.84)' }
-      ], { duration: 520, delay: i * 200, easing: 'cubic-bezier(.2,1.4,.4,1)', fill: 'both' });
+        { opacity: 0, transform: 'scale(2.4) translateY(-12px)' },
+        { opacity: 1, transform: 'scale(1) translateY(0)', offset: .18 },
+        { opacity: 1, transform: 'scale(1) translateY(0)', offset: .72 },
+        { opacity: 0, transform: 'scale(.9) translateY(8px)' }
+      ], { duration: HOLD, delay: i * STEP, easing: 'cubic-bezier(.2,1.3,.4,1)',
+           fill: 'both', raw: true });
     }
-    poolCleanup(2200);
+    poolCleanup(5 * STEP + HOLD + 260);
   },
 
   /* 71 给所有人赐予死刑：X 像雨一样落下来 */
@@ -3066,6 +3168,40 @@ function applyPersist(i){
   if (want === 'isolate') shakeCard(2);
 }
 
+/* 出框：图形冲出卡片边界，短暂地"越过画框" */
+function breakout(){
+  const card = document.querySelector('.card.active');
+  if (!card || REDUCED) return;
+  const svg = card.querySelector('.viz svg');
+  if (!svg) return;
+  svg.animate([
+    { transform: 'scale(1)', opacity: 1 },
+    { transform: 'scale(1.5)', opacity: .9, offset: .32 },
+    { transform: 'scale(2.5)', opacity: 0, offset: 1 }
+  ], { duration: P(1200), easing: 'cubic-bezier(.3,0,.25,1)' });
+}
+/* 需要在某句"冲出画面"的场合 */
+const BREAKOUT = new Set([8, 20, 30, 48, 64, 65, 66, 67, 68, 69, 86]);
+
+/* ---------- 运行时读数 ---------- */
+const hudT = () => document.getElementById('hudT');
+const hudL = () => document.getElementById('hudL');
+const hudH = () => document.getElementById('hudH');
+function hudLine(i){
+  const l = hudL(), h = hudH();
+  if (l) l.textContent = 'LINE ' + String(i + 1).padStart(2, '0') + '/' + N;
+  if (h) h.textContent = 'HEAT ' + (HEAT[i] || 0).toFixed(2);
+  document.body.classList.toggle('climax', (HEAT[i] || 0) >= 0.9);
+}
+function hudTime(){
+  const t = hudT();
+  if (!t) return;
+  const sec = (audioReady && audio.duration) ? audio.currentTime : perfClock();
+  t.textContent = 't=' + sec.toFixed(2).padStart(5, '0') + 's';
+}
+let perfT0 = performance.now();
+function perfClock(){ return (performance.now() - perfT0) / 1000; }
+
 /** 每句只演一次：同一个句号连续进入不重复播放 */
 let lastPerformed = -1;
 function perform(i, heat){
@@ -3083,11 +3219,11 @@ let cageOn = false;
 function buildCage(){
   const host = document.getElementById('cage');
   if (!host || host._built) return host;
-  const COUNT = 9;
+  const COUNT = 8;
   for (let i = 0; i < COUNT; i++){
     const t = i / (COUNT - 1);                     // 0 → 1
     const edge = Math.abs(t - .5) * 2;             // 0 中心 → 1 边缘
-    const w = 9 + edge * 9;                        // 边缘更粗，做出景深
+    const w = 20 + edge * 16;                      // 边缘更粗，做出景深（原来只有 9~18px）
     const bar = document.createElement('i');
     bar.style.left = (5 + t * 90) + '%';
     bar.style.width = w + 'px';
@@ -3230,6 +3366,8 @@ function setIndex(i, opts){
   // 按歌词内容的演出（一次性）+ 持续状态（栏杆 / 隔离 / 恍惚 / 色调）
   perform(i, heat);
   applyPersist(i + 1);
+  hudLine(i);
+  if (BREAKOUT.has(i + 1)) breakout();
 
   typeEn(active.querySelector('.en'), LINES[i].en);
 
@@ -3262,8 +3400,16 @@ function setIndex(i, opts){
 function scrollCardToTop(el, instant){
   const pad = 18;
   const top = Math.max(0, el.offsetTop - pad);
-  if (instant) stage.scrollTop = top;                    // 深链进入时直接落位
-  else stage.scrollTo({ top, behavior: 'smooth' });
+  if (instant){
+    // #stage 上有 scroll-behavior:smooth，直接赋值 scrollTop 会被当成平滑滚动，
+    // 瞬时落位会被这个动画吞掉。这里临时切成 auto，赋完再还回去。
+    const prev = stage.style.scrollBehavior;
+    stage.style.scrollBehavior = 'auto';
+    stage.scrollTop = top;
+    stage.style.scrollBehavior = prev;
+  } else {
+    stage.scrollTo({ top, behavior: 'smooth' });
+  }
 }
 
 function next(){ const i = Math.min(N - 1, index + 1); setIndex(i); seekTo(i); }
@@ -3754,6 +3900,21 @@ function wake(){
 ['mousemove','mousedown','keydown','wheel','touchstart','pointerdown'].forEach(ev =>
   window.addEventListener(ev, wake, {passive:true}));
 wake();
+
+/* 运行时读数每秒刷新一次时间码 */
+setInterval(hudTime, 200);
+hudTime();
+
+/* 字体加载完成后要重新落位一次：@font-face 是异步的，
+   字体换上去之后每句歌词的换行位置和卡片高度都会变，
+   原来的 offsetTop 就失效了（实测会差出一两张卡）。 */
+function resettle(){
+  const card = cards[index];
+  if (card) scrollCardToTop(card, true);
+}
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(resettle);
+window.addEventListener('load', resettle);
+window.addEventListener('resize', resettle);
 
 
 /* ---- 复制 ---- */
