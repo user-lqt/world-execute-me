@@ -277,7 +277,8 @@ pre.code .ch.head{
    所以看起来是圆的金属杆而不是色块。 */
 #cage{position:fixed;inset:0;pointer-events:none;z-index:55;overflow:hidden}
 #cage i{
-  position:absolute;top:-2%;bottom:-2%;opacity:0;transform:scaleY(0);transform-origin:top center;
+  /* 竖杆缩在上下横梁之间，不要戳出去 —— 这样交叠处看着才像焊接的笼子 */
+  position:absolute;top:7px;bottom:7px;opacity:0;transform:scaleY(0);transform-origin:top center;
   background:linear-gradient(90deg,
     rgba(2,4,8,.55), rgba(140,190,220,.20) 34%,
     rgba(226,248,255,.46) 48%, rgba(140,190,220,.18) 62%, rgba(2,4,8,.55));
@@ -288,7 +289,10 @@ pre.code .ch.head{
   background:linear-gradient(180deg,
     rgba(2,4,8,.75), rgba(200,232,255,.42) 45%, rgba(2,4,8,.7));
   box-shadow:0 0 30px rgba(0,0,0,.6);
+  z-index:2;                                  /* 横梁压在竖杆之上 */
 }
+/* 囚笼期间关掉横向撕裂条与横向光带：同一画面里不要出现两套"栏杆" */
+body.caged .fx-bars,body.caged .fx-whip{display:none}
 #cage b.cage-rail-top{top:0;transform-origin:left center}
 #cage b.cage-rail-bot{bottom:0;transform-origin:right center}
 /* 栏杆之间再压一层暗角，强化"被关在里面"的感觉 */
@@ -2700,12 +2704,14 @@ function sceneFx(kind, heat){
   }
 
   if (kind === 'cage'){
-    // 一根根铁栏落下来
-    F.bars.animate([
-      { opacity: 0,   transform: 'scaleY(.2)', transformOrigin: 'top' },
-      { opacity: .85, transform: 'scaleY(1)',  transformOrigin: 'top', offset: .35 },
-      { opacity: 0,   transform: 'scaleY(1)',  transformOrigin: 'top' }
-    ], { duration: D, easing: 'cubic-bezier(.2,1,.3,1)' });
+    // 这里不再自己画"铁栏落下" —— 真正的 #cage 竖向栏杆已经在落了。
+    // 两套"栅栏"同时出现会互相打架（横向撕裂条 vs 竖向栏杆）。
+    // 这里只负责压暗 + 顿一下，把注意力让给栏杆。
+    F.dark.animate([
+      { opacity: 0 }, { opacity: .34, offset: .25 }, { opacity: .18, offset: .6 },
+      { opacity: 0 }
+    ], { duration: D, easing: 'cubic-bezier(.3,0,.3,1)' });
+    shakeCard(3);
   }
 
   if (kind === 'trance'){
@@ -3017,11 +3023,37 @@ const PERFORM = {
     poolCleanup(1700);
   },
 
-  /* 53-57 你走了 ×5：页面一级一级暗下去 */
-  53: (h, i) => {
-    const step = { 53: .10, 54: .22, 55: .35, 56: .50, 57: .66 }[i] || .1;
-    fx().dark.animate([{ opacity: 0 }, { opacity: step }],
+  /* 53-57 你走了 ×5：逐级压暗，五句各有各的全屏动作 ——
+     同一个人在反复轮询一个已经没人应答的通道，每次的反应都不一样 */
+  53: () => {
+    fx().dark.animate([{ opacity: 0 }, { opacity: .10 }],
       { duration: P(900), easing: 'ease-out', fill: 'both' });
+    fxPunch(0.86, .1);
+  },
+  /* 54 第 1 次：一次短促的闪噪，信号还在 */
+  54: () => {
+    fx().dark.animate([{ opacity: 0 }, { opacity: .22 }],
+      { duration: P(900), easing: 'ease-out', fill: 'both' });
+    fxNoise(2);
+  },
+  /* 55 第 2 次：一道扫描自上而下，像在搜索 */
+  55: () => {
+    fx().dark.animate([{ opacity: 0 }, { opacity: .35 }],
+      { duration: P(900), easing: 'ease-out', fill: 'both' });
+    fxScanDown(1);
+  },
+  /* 56 第 3 次：画面撕裂，连接出错 */
+  56: () => {
+    fx().dark.animate([{ opacity: 0 }, { opacity: .50 }],
+      { duration: P(900), easing: 'ease-out', fill: 'both' });
+    fxGlitch();
+  },
+  /* 57 第 4 次：粒子向中心收拢后散掉 —— 确认了对面不在 */
+  57: () => {
+    fx().dark.animate([{ opacity: 0 }, { opacity: .66 }],
+      { duration: P(900), easing: 'ease-out', fill: 'both' });
+    fxConverge(18);
+    fxHeartbeat();
   },
 
   /* 58 你离我而去 在孤独之中：只剩一束聚光 */
@@ -3614,6 +3646,7 @@ function buildCage(){
 
 function cageShow(on){
   const host = buildCage();
+  document.body.classList.toggle('caged', on);   // 关掉横向撕裂条，避免两套栅栏打架
   if (!host || on === cageOn) return;
   cageOn = on;
   host.classList.toggle('on', on);
