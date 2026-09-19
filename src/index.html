@@ -663,12 +663,12 @@ const VIZ = {
       + '<circle cx="164" cy="90" r="6" class="f-cyan pulse"/>'
       + '<line x1="178" y1="90" x2="376" y2="90" class="s-dim" stroke-width="2"/>'
       + '<polyline points="228,36 262,90 240,90 274,144" fill="none" class="s-amber" stroke-width="2.4"/>'
-      + '<text x="30" y="70" class="t-dim">POWER_LINE</text>';
+      + '';
   },
   shield(){
     return '<path d="M200 26 L272 54 V98 C272 134 236 156 200 166 C164 156 128 134 128 98 V54 Z" fill="none" class="s-cyan" stroke-width="2"/>'
       + '<path d="M172 94 l18 20 l38 -48" fill="none" class="s-green" stroke-width="3" stroke-linecap="round"/>'
-      + '<text x="200" y="176" class="t-dim" text-anchor="middle">PROTECTION</text>';
+      + '';
   },
   board(){
     let s=''; const w=24;
@@ -690,7 +690,7 @@ const VIZ = {
     for(let i=0;i<13;i++) for(let j=0;j<5;j++){
       s += '<circle cx="'+(26+i*29)+'" cy="'+(30+j*30)+'" r="1.7" class="f-dim" opacity="'+(((i+j)%5===0)?'.95':'.4')+'"/>';
     }
-    return s + '<text x="26" y="168" class="t-dim">data[]</text>';
+    return s + '';
   },
   circle(){
     return '<circle cx="200" cy="90" r="58" fill="none" class="s-cyan" stroke-width="2"/>'
@@ -720,8 +720,8 @@ const VIZ = {
   },
   limit(){
     const p=[]; for(let i=0;i<=70;i++){ const x=24+i*5.03; p.push([x, 158 - 116*(1-Math.exp(-(x-24)/92))]); }
-    return '<line x1="24" y1="42" x2="376" y2="42" class="s-dim" stroke-width="1" stroke-dasharray="5 7"/>'
-      + '<text x="330" y="36" class="t-dim">LIMIT</text>'
+    return '<line x1="24" y1="42" x2="376" y2="42" class="s-dim dash" stroke-width="1"/>'
+      + ''
       + '<path d="'+poly(p)+'" fill="none" class="s-cyan" stroke-width="2.2"/>'
       + '<circle cx="330" cy="43.5" r="4" class="f-amber pulse"/>';
   },
@@ -731,6 +731,40 @@ const VIZ = {
       + '<text x="115" y="96" class="t-dim" text-anchor="middle" style="font-size:15px">AC</text>'
       + '<text x="285" y="96" class="t-dim" text-anchor="middle" style="font-size:15px">DC</text>'
       + '<path d="M176 90 h48 m-10 -8 l10 8 l-10 8" fill="none" class="s-amber" stroke-width="1.6"/>';
+  },
+
+  /* 神经网络格点：四层节点 + 全连接边。
+     不写字 —— 让边上的虚线往右流动、节点按层错开呼吸，
+     看起来就是信号在一层层传过去。 */
+  neural(i){
+    const LAYERS = [4, 5, 5, 3];
+    const nodes = [];
+    LAYERS.forEach((n, li) => {
+      const x = 52 + li * 99;
+      for (let k = 0; k < n; k++){
+        nodes.push({ x: x, y: 90 + (k - (n - 1) / 2) * 27, l: li });
+      }
+    });
+    let edges = '';
+    for (let a = 0; a < nodes.length; a++){
+      for (let b = 0; b < nodes.length; b++){
+        if (nodes[b].l !== nodes[a].l + 1) continue;
+        // 边的相位按层错开，虚线看起来是逐层往前爬的
+        edges += '<line x1="' + nodes[a].x + '" y1="' + nodes[a].y.toFixed(1) + '" x2="' + nodes[b].x
+              + '" y2="' + nodes[b].y.toFixed(1) + '" class="s-dim dash" stroke-width=".7" opacity=".42"'
+              + ' style="animation-delay:' + (-nodes[a].l * 0.55).toFixed(2) + 's"/>';
+      }
+    }
+    let dots = '';
+    nodes.forEach(p => {
+      const op = (0.4 + p.l * 0.18).toFixed(2);
+      dots += '<circle cx="' + p.x + '" cy="' + p.y.toFixed(1) + '" r="4.4" class="f-cyan pulse"'
+            + ' opacity="' + op + '" style="animation-delay:' + (-p.l * 0.42).toFixed(2) + 's"/>';
+    });
+    const last = nodes[nodes.length - 1];
+    return edges + dots
+      + '<circle cx="' + last.x + '" cy="' + last.y.toFixed(1) + '" r="7.5" fill="none"'
+      + ' class="s-amber pulse" stroke-width="1.6"/>';
   },
 
   /* 整流：画一条信号从左到右依次经过四个阶段 ——
@@ -760,20 +794,15 @@ const VIZ = {
     const YCUT = Y0 - A * CUT;
     const lineNo = (i || 0) + 1;
     const atAc = lineNo === 17;
+    // 不加任何文字标注，让波形自己说
     const div = k => '<line x1="' + X(k) + '" y1="22" x2="' + X(k) + '" y2="156"'
       + ' class="s-dim" stroke-width=".9" stroke-dasharray="3 6" opacity=".5"/>';
-    const lab = (k, txt) => '<text x="' + X(k) + '" y="18" class="t-dim" text-anchor="middle">' + txt + '</text>';
     return '<line x1="' + X0 + '" y1="' + Y0 + '" x2="' + X1 + '" y2="' + Y0 + '" class="s-dim" stroke-width=".9" opacity=".4"/>'
       + '<line x1="' + X0 + '" y1="' + YCUT + '" x2="' + X1 + '" y2="' + YCUT + '"'
       + ' class="s-pink" stroke-width="1" stroke-dasharray="4 6" opacity=".6"/>'
-      + '<text x="' + X1 + '" y="' + (YCUT - 7) + '" class="t-dim" text-anchor="end">削波电平</text>'
       + div(T1) + div(T2) + div(T3)
-      + lab((T1) / 2, '正弦') + lab((T1 + T2) / 2, '整流')
-      + lab((T2 + T3) / 2, '削波') + lab((T3 + 1) / 2, '直流')
       + '<path d="' + poly(pts) + '" fill="none" class="s-cyan" stroke-width="2.8"/>'
-      + '<circle cx="' + (atAc ? 60 : 344) + '" cy="' + (atAc ? Y0 + 34 : YCUT) + '" r="5" class="f-pink pulse"/>'
-      + '<text x="' + X0 + '" y="176" class="t-dim">AC ~</text>'
-      + '<text x="' + X1 + '" y="176" class="t-dim" text-anchor="end">DC ─</text>';
+      + '<circle cx="' + (atAc ? 60 : 344) + '" cy="' + (atAc ? Y0 + 34 : YCUT) + '" r="5" class="f-pink pulse"/>';
   },
   void(){
     return VIZ.doodle(3);        // 已停用，保留以防有旧数据引用；不再渲染 null 字样
@@ -783,7 +812,7 @@ const VIZ = {
     for(let t=0;t<7*Math.PI;t+=0.12){ const r=3+t*8.4; p.push([200+Math.cos(t)*r, 90+Math.sin(t)*r*0.6]); }
     return '<path d="'+poly(p)+'" fill="none" class="s-cyan" stroke-width="1.6" opacity=".9"/>'
       + '<circle cx="200" cy="90" r="3" class="f-pink pulse"/>'
-      + '<text x="26" y="168" class="t-dim">while(true) spin();</text>';
+      + '';
   },
   timeline(){
     let s = '<line x1="28" y1="104" x2="372" y2="104" class="s-cyan" stroke-width="1.6"/>';
@@ -800,15 +829,16 @@ const VIZ = {
       + '<circle cx="232" cy="90" r="58" class="s-pink" fill="rgba(255,90,168,.06)" stroke-width="1.6"/>'
       + '<text x="120" y="94" class="t-dim">me</text>'
       + '<text x="256" y="94" class="t-dim">you</text>'
-      + '<text x="200" y="170" class="t-dim" text-anchor="middle">this == you</text>';
+      + '';
   },
   depth(){
     let s='';
     for(let i=0;i<6;i++){
-      s += '<circle cx="200" cy="90" r="'+(18+i*13)+'" fill="none" class="s-violet" stroke-width="1.4" opacity="'+(0.85-i*0.12)+'"/>';
+      s += '<circle cx="200" cy="90" r="'+(18+i*13)+'" fill="none" class="s-violet pulse" stroke-width="1.4"'
+         + ' opacity="'+(0.85-i*0.12)+'" style="animation-delay:'+(-i*0.35).toFixed(2)+'s"/>';
     }
     return s + '<circle cx="200" cy="90" r="5" class="f-pink pulse"/>'
-      + '<text x="26" y="168" class="t-dim">Double.MAX_VALUE</text>';
+      + '';
   },
   pulse(){
     let s='';
@@ -819,7 +849,7 @@ const VIZ = {
     return '<circle cx="200" cy="90" r="62" fill="none" class="s-red pulse" stroke-width="1.2"/>'
       + '<line x1="132" y1="34" x2="268" y2="146" class="s-red" stroke-width="6" stroke-linecap="round" opacity=".9"/>'
       + '<line x1="268" y1="34" x2="132" y2="146" class="s-red" stroke-width="6" stroke-linecap="round" opacity=".9"/>'
-      + '<text x="200" y="172" class="t-dim" text-anchor="middle" style="font-size:12px">EXECUTION</text>';
+      + '';
   },
   cage(){
     let s='';
@@ -833,7 +863,7 @@ const VIZ = {
     return '<path d="M200 34 C248 40 272 78 262 116 C252 152 214 164 182 150 C146 134 136 96 152 66 C164 44 178 32 200 34 Z" fill="none" class="s-violet" stroke-width="2"/>'
       + '<path d="M200 34 C196 24 198 16 208 10" fill="none" class="s-green" stroke-width="2"/>'
       + '<path d="M208 14 C224 12 234 20 236 30 C220 34 210 26 208 14 Z" class="f-green" opacity=".55"/>'
-      + '<text x="200" y="176" class="t-dim" text-anchor="middle">yield(NUTRIENTS)</text>';
+      + '';
   },
   cat(){
     return '<path d="M150 56 l10 -32 l30 20 z" class="s-amber" fill="rgba(255,200,87,.10)" stroke-width="1.6"/>'
@@ -844,17 +874,18 @@ const VIZ = {
       + '<path d="M192 112 q8 8 16 0" fill="none" class="s-amber" stroke-width="1.6"/>'
       + '<line x1="118" y1="96" x2="156" y2="100" class="s-dim" stroke-width="1"/>'
       + '<line x1="282" y1="96" x2="244" y2="100" class="s-dim" stroke-width="1"/>'
-      + '<text x="200" y="172" class="t-dim" text-anchor="middle">purr();</text>';
+      + '';
   },
   god(){
     let s='';
     for(let i=0;i<16;i++){
       const a=i*Math.PI/8;
-      s += '<line x1="'+(200+Math.cos(a)*54)+'" y1="'+(90+Math.sin(a)*54)+'" x2="'+(200+Math.cos(a)*82)+'" y2="'+(90+Math.sin(a)*82)+'" class="s-amber" stroke-width="1.4" opacity=".7"/>';
+      s += '<line x1="'+(200+Math.cos(a)*54)+'" y1="'+(90+Math.sin(a)*54)+'" x2="'+(200+Math.cos(a)*82)+'" y2="'+(90+Math.sin(a)*82)+'"'
+         + ' class="s-amber spin" stroke-width="1.4" opacity=".7"/>';
     }
     return s + '<circle cx="200" cy="90" r="42" fill="none" class="s-amber" stroke-width="2"/>'
       + '<circle cx="200" cy="90" r="7" class="f-amber pulse"/>'
-      + '<text x="200" y="176" class="t-dim" text-anchor="middle">GOD.count() == 1</text>';
+      + '';
   },
   heart(){
     const p=[];
@@ -869,10 +900,10 @@ const VIZ = {
   isolation(){
     let s='';
     for(let i=0;i<6;i++) for(let j=0;j<3;j++){
-      const on = (i===4 && j===1);
+      const on = (i===4 && j===1);   // 只有这一格在动
       s += '<rect x="'+(52+i*50)+'" y="'+(34+j*40)+'" width="42" height="32" rx="4" class="f-cell'+(on?' f-on pulse':'')+'"/>';
     }
-    return s + '<text x="52" y="172" class="t-dim">ISOLATION_SERIALIZABLE</text>';
+    return s + '';
   },
   fragments(i){
     const f=[[54,40,26],[120,110,16],[176,52,20],[248,124,14],[300,44,22],[336,110,18],[92,74,12],[212,88,10],[280,80,12]];
@@ -891,10 +922,11 @@ const VIZ = {
     let s='';
     for(let i=0;i<6;i++){
       const h = 30+i*16;
-      s += '<rect x="'+(72+i*46)+'" y="'+(140-h)+'" width="22" height="'+h+'" rx="3" fill="none" class="s-cyan" stroke-width="1.6"/>';
+      s += '<rect x="'+(72+i*46)+'" y="'+(140-h)+'" width="22" height="'+h+'" rx="3" fill="none"'
+         + ' class="s-cyan pulse" stroke-width="1.6" style="animation-delay:'+(-i*0.28).toFixed(2)+'s"/>';
       s += '<text x="'+(83+i*46)+'" y="160" class="t-dim" text-anchor="middle">'+(i+1)+'</text>';
     }
-    return s + '<text x="28" y="30" class="t-dim">EIN DOS TROIS NE FEM LIU</text>';
+    return s + '';
   }
 };
 /* ===== 追加：把被过度复用的意象拆开 =====
@@ -912,12 +944,12 @@ VIZ.gender = () => {
     + '<line x1="248" y1="128" x2="288" y2="128" class="s-pink" stroke-width="2.4"/>'
     + '<text x="268" y="85" class="t-dim" text-anchor="middle" style="font-size:15px">F</text>'
     // 双向：上路 M → F，下路 F → M，两条独立的箭头
-    + '<path d="M186 104 h28" fill="none" class="s-amber" stroke-width="1.8"/>'
+    + '<path d="M186 104 h28" fill="none" class="s-amber dash" stroke-width="1.8"/>'
     + '<path d="M206 97 l9 7 l-9 7" fill="none" class="s-amber" stroke-width="1.8"/>'
-    + '<path d="M214 124 h-28" fill="none" class="s-amber" stroke-width="1.8"/>'
+    + '<path d="M214 124 h-28" fill="none" class="s-amber dash" stroke-width="1.8" style="animation-delay:-1.3s"/>'
     + '<path d="M194 117 l-9 7 l9 7" fill="none" class="s-amber" stroke-width="1.8"/>'
-    + '<text x="132" y="172" class="t-dim" text-anchor="middle">chromosome().swap()</text>'
-    + '<text x="268" y="172" class="t-dim" text-anchor="middle">phenotype().rebuild()</text>';
+    + ''
+    + '';
 };
 
 /* S ⇄ M —— 切换角色（链条 + 双向箭头）。注意别叫 power，
@@ -928,7 +960,8 @@ VIZ.role = () => {
   for (let k = 0; k < 5; k++){
     const x = 124 + k * 38;
     chain += '<ellipse cx="' + x + '" cy="122" rx="17" ry="10" fill="none" class="s-violet" stroke-width="2"/>';
-    chain += '<circle cx="' + x + '" cy="122" r="2.2" class="f-violet" opacity="' + (0.35 + k * 0.13).toFixed(2) + '"/>';
+    chain += '<circle cx="' + x + '" cy="122" r="2.6" class="f-violet pulse" opacity="' + (0.35 + k * 0.13).toFixed(2)
+           + '" style="animation-delay:' + (-k * 0.34).toFixed(2) + 's"/>';
   }
   // 权力标尺：从 S 端到 M 端，刻度越来越密
   let ruler = '<line x1="66" y1="156" x2="334" y2="156" class="s-dim" stroke-width="1"/>';
@@ -938,19 +971,19 @@ VIZ.role = () => {
     ruler += '<line x1="' + x.toFixed(1) + '" y1="156" x2="' + x.toFixed(1) + '" y2="' + (156 + h).toFixed(1)
           + '" class="s-dim" stroke-width="1"/>';
   }
-  ruler += '<text x="66" y="176" class="t-dim">dom</text>'
-        + '<text x="334" y="176" class="t-dim" text-anchor="end">sub</text>';
+  ruler += ''
+        + '';
   return chain + ruler
     + '<circle cx="92" cy="64" r="27" fill="none" class="s-cyan" stroke-width="2.4"/>'
     + '<text x="92" y="72" class="t-dim" text-anchor="middle" style="font-size:17px">S</text>'
     + '<circle cx="308" cy="64" r="27" fill="none" class="s-pink" stroke-width="2.4"/>'
     + '<text x="308" y="72" class="t-dim" text-anchor="middle" style="font-size:17px">M</text>'
     // 双向大箭头：上 S→M，下 M→S
-    + '<path d="M124 36 h152" class="s-amber" stroke-width="1.8" fill="none"/>'
+    + '<path d="M124 36 h152" class="s-amber dash" stroke-width="1.8" fill="none"/>'
     + '<path d="M266 28 l10 8 l-10 8" fill="none" class="s-amber" stroke-width="1.8"/>'
-    + '<path d="M276 50 h-152" class="s-amber" stroke-width="1.8" fill="none"/>'
+    + '<path d="M276 50 h-152" class="s-amber dash" stroke-width="1.8" fill="none" style="animation-delay:-1.3s"/>'
     + '<path d="M134 42 l-10 8 l10 8" fill="none" class="s-amber" stroke-width="1.8"/>'
-    + '<text x="200" y="94" class="t-dim" text-anchor="middle">role.switchTo(inverse())</text>';
+    + '';
 };
 
 /* if / then —— 条件判定，TRUE 分支按行号左右交替 */
@@ -975,11 +1008,12 @@ VIZ.probe = (i) => {
   for (let j = 0; j < 5; j++){
     const x = 68 + j * 66;
     s += '<circle cx="' + x + '" cy="82" r="14" fill="none" stroke-width="2" class="'
-       + (j === k ? 's-pink pulse' : 's-dim') + '"/>';
+       + (j === k ? 's-pink pulse' : 's-dim') + '"'
+       + (j === k ? ' style="animation-delay:-' + (k * 0.22).toFixed(2) + 's"' : '') + '/>';
     s += '<line x1="' + x + '" y1="96" x2="' + x + '" y2="126" stroke-width="2" class="'
        + (j <= k ? 's-cyan' : 's-dim') + '"/>';
   }
-  return '<text x="68" y="42" class="t-dim">channel.tryReceive()</text>' + s
+  return '' + s
     + '<text x="200" y="160" class="t-dim" text-anchor="middle">empty × ' + (k + 1) + '</text>';
 };
 
@@ -992,11 +1026,11 @@ VIZ.salvo = (i) => {
       const x = 118 + c * 56, y = 42 + r * 32;
       s += '<path d="M' + (x - 11) + ' ' + (y - 11) + ' L' + (x + 11) + ' ' + (y + 11)
          + ' M' + (x + 11) + ' ' + (y - 11) + ' L' + (x - 11) + ' ' + (y + 11)
-         + '" class="s-red" stroke-width="3" stroke-linecap="round" opacity="'
-         + (0.45 + r * 0.28).toFixed(2) + '"/>';
+         + '" class="s-red pulse" stroke-width="3" stroke-linecap="round" opacity="'
+         + (0.45 + r * 0.28).toFixed(2) + '" style="animation-delay:'+(-(r*4+c)*0.16).toFixed(2)+'s"/>';
     }
   }
-  return s + '<text x="200" y="166" class="t-dim" text-anchor="middle">EXECUTION × ' + (rows * 4) + '</text>';
+  return s + '';
 };
 
 /* 唯一的执行：同心环里只有一个 X */
@@ -1008,7 +1042,7 @@ VIZ.only = () => {
   }
   return s
     + '<path d="M188 76 L212 100 M212 76 L188 100" class="s-red" stroke-width="5" stroke-linecap="round"/>'
-    + '<text x="200" y="172" class="t-dim" text-anchor="middle">your.only(EXECUTION)</text>';
+    + '';
 };
 
 /* 结巴的 token：LO-O-OVE */
@@ -1020,14 +1054,14 @@ VIZ.lovenote = () => {
     s += '<line x1="52" y1="' + (y + 8) + '" x2="' + (168 + j * 52) + '" y2="' + (y + 8)
        + '" class="s-pink" stroke-width="2" opacity="' + (0.85 - j * 0.22).toFixed(2) + '"/>';
   }
-  return s + '<text x="330" y="156" class="t-dim">stutter</text>';
+  return s + '';
 };
 
 /* 提问：一个大问号 */
 VIZ.qa = () => {
   return '<text x="200" y="118" text-anchor="middle" style="font-size:86px;fill:#b48cff;opacity:.55">?</text>'
     + '<rect x="150" y="132" width="100" height="4" rx="2" class="f-violet pulse"/>'
-    + '<text x="200" y="170" class="t-dim" text-anchor="middle">ask(LOVE) → 1.0</text>';
+    + '';
 };
 
 /* 全部答对：对勾清单 */
@@ -1035,10 +1069,11 @@ VIZ.checklist = () => {
   let s = '';
   for (let j = 0; j < 5; j++){
     const y = 34 + j * 26;
-    s += '<path d="M92 ' + y + ' l9 11 l18 -22" fill="none" class="s-green" stroke-width="2.4" stroke-linecap="round"/>';
+    s += '<path d="M92 ' + y + ' l9 11 l18 -22" fill="none" class="s-green pulse" stroke-width="2.4"'
+       + ' stroke-linecap="round" style="animation-delay:'+(-j*0.3).toFixed(2)+'s"/>';
     s += '<line x1="140" y1="' + (y + 2) + '" x2="' + (304 - j * 16) + '" y2="' + (y + 2) + '" class="s-dim" stroke-width="2"/>';
   }
-  return s + '<text x="200" y="174" class="t-dim" text-anchor="middle">5 / 5 correct</text>';
+  return s + '';
 };
 
 /* 爱的代数式：抛物线 + 坐标轴 */
@@ -1049,7 +1084,7 @@ VIZ.curve = () => {
     + '<line x1="200" y1="18" x2="200" y2="158" class="s-dim" stroke-width="1.2"/>'
     + '<path d="' + poly(p) + '" fill="none" class="s-cyan dash" stroke-width="2.2"/>'
     + '<text x="276" y="36" class="t-dim">y = a(x−h)² + k</text>'
-    + '<text x="200" y="172" class="t-dim" text-anchor="middle">algebraicExpression(LO-O-OVE)</text>';
+    + '';
 };
 
 /* 回到我身边：回溯箭头 */
@@ -1057,7 +1092,7 @@ VIZ.undo = () => {
   return '<path d="M200 34 a54 54 0 1 1 -50 70" fill="none" class="s-cyan" stroke-width="2.6"/>'
     + '<path d="M136 92 l12 20 l22 -12" fill="none" class="s-cyan" stroke-width="2.6" stroke-linecap="round"/>'
     + '<circle cx="200" cy="88" r="9" class="f-pink pulse"/>'
-    + '<text x="200" y="172" class="t-dim" text-anchor="middle">ifBack(you) → replay()</text>';
+    + '';
 };
 
 /* 困在爱里：笼中之心 */
@@ -1074,7 +1109,7 @@ VIZ.heartcage = () => {
   }
   s += '<line x1="112" y1="26" x2="288" y2="26" class="s-cyan" stroke-width="2"/>';
   s += '<line x1="112" y1="152" x2="288" y2="152" class="s-cyan" stroke-width="2"/>';
-  return s + '<text x="200" y="176" class="t-dim" text-anchor="middle">trapped in LO-O-OVE</text>';
+  return s + '';
 };
 
 /* 被挡在门外：门开了一条缝 */
@@ -1082,7 +1117,7 @@ VIZ.gate = () => {
   return '<rect x="118" y="26" width="76" height="128" rx="6" fill="none" class="s-cyan" stroke-width="2"/>'
     + '<rect x="206" y="26" width="76" height="128" rx="6" fill="none" class="s-cyan" stroke-width="2"/>'
     + '<path d="M60 90 h48 m-10 -9 l10 9 l-10 9" fill="none" class="s-amber" stroke-width="2"/>'
-    + '<text x="200" y="176" class="t-dim" text-anchor="middle">if (both.consenting()) enter()</text>';
+    + '';
 };
 
 /* 也许：三个虚线环，只有一个亮 */
@@ -1094,7 +1129,7 @@ VIZ.maybe = (i) => {
     s += '<circle cx="' + x + '" cy="84" r="34" fill="none" class="'
        + (j === k ? 's-amber pulse' : 's-dim') + '" stroke-width="2" stroke-dasharray="5 7"/>';
   }
-  return s + '<text x="200" y="166" class="t-dim" text-anchor="middle">then maybe …</text>';
+  return s + '';
 };
 
 /* 茄子 */
@@ -1102,7 +1137,7 @@ VIZ.eggplant = () => {
   return '<path d="M200 48 C240 48 264 90 258 122 C252 152 222 166 196 163 C168 160 144 140 144 110 C144 76 168 48 200 48 Z" fill="none" class="s-violet" stroke-width="2.2"/>'
     + '<path d="M200 48 c-4 -12 -2 -20 8 -27" fill="none" class="s-green" stroke-width="2.4"/>'
     + '<path d="M208 21 C226 19 238 27 240 39 C222 43 210 35 208 21 Z" class="f-green" opacity=".6"/>'
-    + '<text x="200" y="176" class="t-dim" text-anchor="middle">yield(NUTRIENTS)</text>';
+    + '';
 };
 
 /* 番茄 */
@@ -1111,7 +1146,7 @@ VIZ.tomato = () => {
     + '<path d="M200 48 v-14" class="s-green" stroke-width="3"/>'
     + '<path d="M200 34 c-18 -11 -38 -7 -44 4 c16 11 34 9 44 -4 Z" class="f-green" opacity=".7"/>'
     + '<path d="M200 34 c18 -11 38 -7 44 4 c-16 11 -34 9 -44 -4 Z" class="f-green" opacity=".7"/>'
-    + '<text x="200" y="176" class="t-dim" text-anchor="middle">antioxidants()</text>';
+    + '';
 };
 
 /* 蒙上眼睛：被划掉的眼 */
@@ -1120,7 +1155,7 @@ VIZ.blind = () => {
     + '<circle cx="200" cy="90" r="20" fill="none" class="s-cyan" stroke-width="2"/>'
     + '<circle cx="200" cy="90" r="8" class="f-pink pulse"/>'
     + '<line x1="112" y1="152" x2="288" y2="28" class="s-red" stroke-width="3" stroke-linecap="round"/>'
-    + '<text x="200" y="174" class="t-dim" text-anchor="middle">vision.blind()</text>';
+    + '';
 };
 
 /* 只做想做的事：随手一划 */
@@ -1131,7 +1166,7 @@ VIZ.doodle = (i) => {
   }
   return '<path d="' + poly(p) + '" fill="none" class="s-cyan dash" stroke-width="2.2"/>'
     + '<circle cx="30" cy="94" r="5" class="f-pink pulse"/>'
-    + '<text x="30" y="40" class="t-dim">doWhatever();  // 不记录，不解释</text>';
+    + '';
 };
 
 /* 非法参数：抛出的异常 */
@@ -1139,7 +1174,7 @@ VIZ.error = () => {
   return '<path d="M200 26 L288 146 H112 Z" fill="none" class="s-red" stroke-width="2.4"/>'
     + '<line x1="200" y1="72" x2="200" y2="108" class="s-red" stroke-width="6" stroke-linecap="round"/>'
     + '<circle cx="200" cy="126" r="5" class="f-red pulse"/>'
-    + '<text x="200" y="170" class="t-dim" text-anchor="middle">IllegalArgumentException</text>';
+    + '';
 };
 
 VIZ.init = VIZ.grid; VIZ.world = VIZ.grid; VIZ.sim = VIZ.points;
@@ -1273,7 +1308,7 @@ L("Set up our new world","设定好我们的新世界","world","WorldBuilder.jav
     }
 }`),
 
-L("And let's begin the SIMULATION","开始吧模拟程序","sim","Simulation.java",
+L("And let's begin the SIMULATION","开始吧模拟程序","neural","Simulation.java",
 `public final class Simulation implements Runnable {
     private static final long TICK_NS = 16_666_667L;   // 60 fps
     private final World world;
@@ -2379,6 +2414,240 @@ function fxPunch(heat, delta){
     { duration: P(400 + heat * 260), easing: 'cubic-bezier(.3,0,.2,1)' });
 }
 
+/* =========================================================
+   2.75 全屏演出原语
+   十四种不同的"运动形式"，都只吃 transform / opacity，走合成器。
+   每个都尽量做成一眼能认出的运动，而不是换个颜色的同一种效果。
+   ========================================================= */
+const sleep = null;   // 占位，避免误用
+
+/** ① 冲击波：从中心一圈圈炸开的环 */
+function fxShockwave(n, tint){
+  n = n || 3;
+  for (let i = 0; i < n; i++){
+    const el = put(i, 'left:50%;top:47%;width:140px;height:140px;margin:-70px 0 0 -70px', 'ring');
+    if (tint) el.style.borderColor = tint;
+    fire(el, [
+      { opacity: 0, transform: 'scale(.12)' },
+      { opacity: .9, offset: .16 },
+      { opacity: 0, transform: 'scale(7)' }
+    ], { duration: 1100, delay: i * 170, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'both' });
+  }
+  poolCleanup(1100 + n * 170 + 200);
+}
+
+/** ② 栅格扫描：一道亮带自上而下刷过整屏 */
+function fxScanDown(times){
+  const F = fx();
+  times = times || 1;
+  for (let i = 0; i < times; i++){
+    F.whip.animate([
+      { transform: 'translateY(-120%) scaleY(1)', opacity: 0 },
+      { opacity: .85, offset: .2 },
+      { transform: 'translateY(120%) scaleY(1)', opacity: 0 }
+    ], { duration: P(1000), delay: P(i * 260), easing: 'cubic-bezier(.5,0,.4,1)' });
+  }
+}
+
+/** ③ 雷达：从中心转出去的一根扫掠光条 */
+function fxRadar(turns){
+  const F = fx();
+  const n = turns || 2;
+  for (let i = 0; i < n; i++){
+    const el = put(i, 'left:50%;top:47%;width:260px;height:2px;transform-origin:0 50%;' +
+      'background:linear-gradient(90deg,var(--accent),transparent)', '');
+    fire(el, [
+      { opacity: 0, transform: 'rotate(0deg)' },
+      { opacity: .95, offset: .1 },
+      { opacity: 0, transform: 'rotate(360deg)' }
+    ], { duration: 1100, delay: i * 520, easing: 'linear', fill: 'both' });
+  }
+  poolCleanup(1100 + n * 520 + 200);
+}
+
+/** ④ 字符雨：全屏往下落的字符列 */
+function fxRain(cols, chars){
+  const pool = chars || '01<>{}[]/*+-=%$#@!?;';
+  cols = cols || 16;
+  for (let i = 0; i < cols; i++){
+    const el = put(i, 'left:' + (2 + i * 6.1) + '%;top:0;width:3.2%;height:100%;' +
+      'font:600 15px var(--mono);color:var(--accent);text-align:center;overflow:hidden', '');
+    let s = '';
+    for (let k = 0; k < 14; k++) s += pool[(Math.random() * pool.length) | 0] + '\n';
+    el.textContent = s;
+    el.style.whiteSpace = 'pre';
+    el.style.lineHeight = '26px';
+    fire(el, [
+      { opacity: 0, transform: 'translateY(-40%)' },
+      { opacity: .55, offset: .18 },
+      { opacity: .55, offset: .7 },
+      { opacity: 0, transform: 'translateY(6%)' }
+    ], { duration: 1500, delay: Math.random() * 420, easing: 'linear', fill: 'both' });
+  }
+  poolCleanup(2200);
+}
+
+/** ⑤ 故障位移：横向撕裂条错位闪三下 */
+function fxGlitch(){
+  const F = fx();
+  F.bars.animate([
+    { opacity: 0, transform: 'translateY(0) scaleY(1)' },
+    { opacity: .9, transform: 'translateY(-2%) scaleY(1.08)', offset: .12 },
+    { opacity: .15, transform: 'translateY(1.5%)', offset: .3 },
+    { opacity: .8, transform: 'translateY(-1%) scaleY(.96)', offset: .48 },
+    { opacity: .1, transform: 'translateY(2%)', offset: .66 },
+    { opacity: .6, transform: 'translateY(0)', offset: .8 },
+    { opacity: 0, transform: 'translateY(0)' }
+  ], { duration: P(760), easing: 'steps(1, end)' });
+  shakeCard(5);
+}
+
+/** ⑥ 推镜：整个画面向前推一下再拉回 */
+function fxDolly(power){
+  const card = document.querySelector('.card.active');
+  const p = power || 1.035;
+  if (card && !REDUCED){
+    card.animate([
+      { transform: 'scale(1)' },
+      { transform: 'scale(' + p + ')', offset: .35 },
+      { transform: 'scale(1)' }
+    ], { duration: P(900), easing: 'cubic-bezier(.3,0,.3,1)' });
+  }
+  const F = fx();
+  F.flash.animate([{ opacity: 0 }, { opacity: .22, offset: .3 }, { opacity: 0 }],
+    { duration: P(900), easing: 'ease-out' });
+}
+
+/** ⑦ 色带冲刷：一道竖直色带横扫整屏 */
+function fxWash(reverse){
+  const el = put(0, 'left:' + (reverse ? '100%' : '-24%') + ';top:0;width:24%;height:100%', '');
+  el.style.background = 'linear-gradient(90deg,transparent,var(--accent-dim) 45%,var(--pink) 55%,transparent)';
+  el.style.filter = 'blur(10px)';
+  const from = reverse ? 0 : -140, to = reverse ? -100 : 520;
+  fire(el, [
+    { opacity: 0, transform: 'translateX(' + from + '%)' },
+    { opacity: .95, offset: .15 },
+    { opacity: .95, transform: 'translateX(' + (to * 0.7) + '%)', offset: .8 },
+    { opacity: 0, transform: 'translateX(' + to + '%)' }
+  ], { duration: P(1050), easing: 'cubic-bezier(.5,0,.3,1)', fill: 'both' });
+  poolCleanup(1800);
+}
+
+/** ⑧ 汇聚：粒子从四周向中心收拢 */
+function fxConverge(n){
+  n = n || 20;
+  for (let i = 0; i < n; i++){
+    const a = (i / n) * Math.PI * 2;
+    const R = 46, x = 50 + Math.cos(a) * R, y = 47 + Math.sin(a) * R * 0.8;
+    const el = put(i, 'left:' + x.toFixed(1) + '%;top:' + y.toFixed(1) + '%;' +
+      'width:7px;height:7px;border-radius:50%;background:var(--accent)', '');
+    fire(el, [
+      { opacity: 0, transform: 'scale(.4)' },
+      { opacity: 1, offset: .2 },
+      { opacity: .9, transform: 'translate(' + (-Math.cos(a) * 46).toFixed(1) + 'vw,'
+        + (-Math.sin(a) * 40).toFixed(1) + 'vh) scale(.2)', offset: .92 },
+      { opacity: 0 }
+    ], { duration: 1200, delay: (n - i) * 22, easing: 'cubic-bezier(.5,0,.3,1)', fill: 'both' });
+  }
+  poolCleanup(2000);
+}
+
+/** ⑨ 炸散：粒子从中心向四周飞开 */
+function fxBurst(n){
+  n = n || 22;
+  for (let i = 0; i < n; i++){
+    const a = (i / n) * Math.PI * 2 + Math.random() * .2;
+    const el = put(i, 'left:50%;top:47%;width:6px;height:6px;border-radius:50%;' +
+      'background:' + (i % 3 ? 'var(--accent)' : 'var(--pink)'), '');
+    fire(el, [
+      { opacity: 0, transform: 'translate(0,0) scale(.3)' },
+      { opacity: 1, offset: .12 },
+      { opacity: 0, transform: 'translate(' + (Math.cos(a) * 60).toFixed(1) + 'vw,'
+        + (Math.sin(a) * 52).toFixed(1) + 'vh) scale(1)' }
+    ], { duration: 1000, delay: Math.random() * 160, easing: 'cubic-bezier(.15,.7,.4,1)', fill: 'both' });
+  }
+  poolCleanup(1600);
+}
+
+/** ⑩ 旋涡：粒子绕着中心转出去 */
+function fxVortex(n){
+  n = n || 18;
+  for (let i = 0; i < n; i++){
+    const a0 = (i / n) * Math.PI * 2;
+    const el = put(i, 'left:50%;top:47%;width:6px;height:6px;border-radius:50%;' +
+      'background:var(--violet)', '');
+    const r = 40 + (i % 4) * 10;
+    fire(el, [
+      { opacity: 0, transform: 'rotate(0deg) translateX(0) scale(.4)' },
+      { opacity: .9, offset: .18 },
+      { opacity: 0, transform: 'rotate(540deg) translateX(' + r + 'vw) scale(.7)' }
+    ], { duration: 1500, delay: i * 28, easing: 'cubic-bezier(.3,0,.5,1)', fill: 'both' });
+  }
+  poolCleanup(2300);
+}
+
+/** ⑪ 光柱：从顶部落下的几道光 */
+function fxShafts(n){
+  n = n || 5;
+  for (let i = 0; i < n; i++){
+    const x = 12 + i * 19 + Math.random() * 4;
+    const el = put(i, 'left:' + x.toFixed(1) + '%;top:-10%;width:' + (5 + Math.random() * 5) +
+      '%;height:130%;background:linear-gradient(180deg,var(--accent-dim),transparent 85%);' +
+      'filter:blur(8px)', '');
+    fire(el, [
+      { opacity: 0, transform: 'scaleY(.3) translateY(-20%)' },
+      { opacity: .8, transform: 'scaleY(1) translateY(0)', offset: .28 },
+      { opacity: .35, offset: .7 },
+      { opacity: 0, transform: 'scaleY(1) translateY(0)' }
+    ], { duration: 1400, delay: i * 90, easing: 'cubic-bezier(.3,.8,.3,1)', fill: 'both' });
+  }
+  poolCleanup(2200);
+}
+
+/** ⑫ 心跳：整屏节奏性的双脉冲 */
+function fxHeartbeat(){
+  const F = fx();
+  F.flash.animate([
+    { opacity: 0 }, { opacity: .42, offset: .07 }, { opacity: .04, offset: .16 },
+    { opacity: 0, offset: .22 }, { opacity: .3, offset: .3 }, { opacity: 0, offset: .5 }
+  ], { duration: P(1400), easing: 'ease-out' });
+  const card = document.querySelector('.card.active');
+  if (card && !REDUCED){
+    card.animate([
+      { transform: 'scale(1)' }, { transform: 'scale(1.014)', offset: .1 },
+      { transform: 'scale(1)', offset: .2 }, { transform: 'scale(1.009)', offset: .3 },
+      { transform: 'scale(1)' }
+    ], { duration: P(1400), easing: 'ease-in-out' });
+  }
+}
+
+/** ⑬ 噪声：全屏快速闪噪 */
+function fxNoise(times){
+  const F = fx();
+  const n = times || 4;
+  let kf = [];
+  for (let i = 0; i <= n * 2; i++) kf.push({ opacity: i % 2 ? .28 : 0 });
+  F.flash.animate(kf, { duration: P(620), easing: 'steps(1, end)' });
+}
+
+/** ⑭ 语法符号：巨大的括号、分号横穿画面 */
+function fxSyntax(){
+  const marks = ['{', '}', '(', ')', ';', '<', '>', '/', '*'];
+  for (let i = 0; i < 9; i++){
+    const el = put(i, 'left:' + (4 + i * 10.6) + '%;top:50%;width:60px;height:90px;' +
+      'margin:-45px 0 0 -30px;font:600 ' + (44 + (i % 3) * 22) + 'px var(--mono);' +
+      'color:var(--accent);text-align:center;line-height:90px', '');
+    el.textContent = marks[i % marks.length];
+    const dir = i % 2 ? 1 : -1;
+    fire(el, [
+      { opacity: 0, transform: 'translateX(' + (dir * 24) + 'vw) scale(.5)' },
+      { opacity: .9, transform: 'translateX(0) scale(1)', offset: .45 },
+      { opacity: 0, transform: 'translateX(' + (-dir * 22) + 'vw) scale(.8)' }
+    ], { duration: 1300, delay: i * 70, easing: 'cubic-bezier(.3,0,.4,1)', fill: 'both' });
+  }
+  poolCleanup(2200);
+}
+
 /** 幕间：整屏转场。不同幕有不同编排 */
 function sceneFx(kind, heat){
   if (REDUCED) return;
@@ -2390,23 +2659,36 @@ function sceneFx(kind, heat){
   fxPunch(heat, 0.4);
 
   if (kind === 'boot'){
-    // 系统上电：先横向撕裂，再铺开网格，最后一道扫描线压过去
-    F.bars.animate([
-      { opacity: 0,    transform: 'translateY(-5%) scaleY(1)' },
-      { opacity: .9,   transform: 'translateY(0) scaleY(1.04)', offset: .10 },
-      { opacity: .12,  transform: 'translateY(0)',              offset: .28 },
-      { opacity: .8,   transform: 'translateY(0) scaleY(.975)', offset: .42 },
-      { opacity: .18,  transform: 'translateY(0)',              offset: .56 },
-      { opacity: .55,  transform: 'translateY(0)',              offset: .68 },
-      { opacity: 0,    transform: 'translateY(3%) scaleY(1)' }
-    ], { duration: D * 0.72, easing: 'steps(1, end)' });
-
+    // 模拟开始：先铺开格点，再让信号一层层传过去 —— 整屏就是一张正在跑起来的网络
     F.grid.animate([
-      { opacity: 0,   transform: 'scale(1.08)' },
-      { opacity: .95, transform: 'scale(1)',   offset: .22 },
-      { opacity: .55, transform: 'scale(1)',   offset: .62 },
-      { opacity: 0,   transform: 'scale(.97)' }
+      { opacity: 0,   transform: 'scale(1.06)' },
+      { opacity: .9,  transform: 'scale(1)',    offset: .18 },
+      { opacity: .45, transform: 'scale(1)',    offset: .72 },
+      { opacity: 0,   transform: 'scale(.99)' }
     ], { duration: D, easing: 'cubic-bezier(.2,.8,.3,1)' });
+
+    // 6 列 × 4 行 的节点，按列依次点亮：信号从输入层推到输出层
+    for (let c = 0; c < 6; c++){
+      for (let r = 0; r < 4; r++){
+        const idx = c * 4 + r;
+        if (idx >= 32) break;
+        const el = put(idx, 'left:' + (7 + c * 16.6) + '%;top:' + (22 + r * 16) + '%;' +
+          'width:9px;height:9px;border-radius:50%;background:var(--accent);' +
+          'box-shadow:0 0 18px var(--accent)', '');
+        fire(el, [
+          { opacity: 0, transform: 'scale(.2)' },
+          { opacity: 1, transform: 'scale(1.5)', offset: .16 },
+          { opacity: .9, transform: 'scale(1)', offset: .4 },
+          { opacity: 0, transform: 'scale(1)', offset: 1 }
+        ], { duration: 900, delay: c * 105, easing: 'cubic-bezier(.2,1.2,.4,1)', fill: 'both' });
+      }
+    }
+    // 最后一道扫描线压过去，收束
+    F.whip.animate([
+      { transform: 'translateY(-120%) scaleY(1)', opacity: 0 },
+      { opacity: .7, offset: .35 },
+      { transform: 'translateY(120%) scaleY(1)', opacity: 0 }
+    ], { duration: D * 0.8, delay: D * 0.45, easing: 'cubic-bezier(.5,0,.4,1)' });
   }
 
   if (kind === 'shock'){
@@ -3115,8 +3397,9 @@ const PERFORM = {
     poolCleanup(2600);
   },
 
-  /* 81 只要是爱的问题我都能答对：对勾成排打下去 */
+  /* 81 只要是爱的问题我都能答对：对勾成排打下去，四周的答案同时向中心收拢 */
   81: () => {
+    fxConverge(22);
     for (let i = 0; i < 12; i++){
       const col = i % 6, row = (i / 6) | 0;
       const el = put(i, 'left:' + (16 + col * 12) + '%;top:' + (34 + row * 16) + '%;' +
@@ -3147,8 +3430,78 @@ const PERFORM = {
            { duration: 1700, delay: i * 70, easing: 'cubic-bezier(.4,0,.7,1)', fill: 'both' });
     }
     poolCleanup(2600);
-  }
+  },
+
+  /* ── 以下：把十四种全屏演出铺到还只有通用冲击的那些句子上 ── */
+
+  /* 04 开始吧对象生成：粒子从四周汇聚成"一个对象" */
+  4: () => { fxConverge(20); fxShockwave(2); },
+
+  /* 07 设定好我们的新世界：一道光柱落下，世界展开 */
+  7: () => { fxShafts(5); fxScanDown(1); },
+
+  /* 14 请你坐上我的切线：一道竖直色带扫过 */
+  14: () => { fxWash(); },
+
+  /* 18 从交流到直流：反向冲刷，像电流被整流过去 */
+  18: () => { fxWash(true); fxNoise(3); },
+
+  /* 19 然后蒙上我的眼睛：画面刷黑一下再睁开 */
+  19: () => {
+    fx().dark.animate([{ opacity: 0 }, { opacity: .92, offset: .28 },
+                       { opacity: .92, offset: .55 }, { opacity: 0 }],
+      { duration: P(1400), easing: 'cubic-bezier(.4,0,.2,1)', fill: 'both' });
+  },
+
+  /* 22 从西历到公元前：一根扫掠光条转两圈，像时间在倒着走 */
+  22: () => { fxRadar(2); },
+
+  /* 25 / 27 / 70 / 72 那些 "If I can / Then I can"：一次方波般的明灭 */
+  25: () => { fxNoise(4); },
+  27: () => { fxNoise(4); },
+
+  /* 26 献给你所有的刺激：一波接一波的冲击环 */
+  26: () => { fxShockwave(4); fxHeartbeat(); },
+
+  /* 33-36 茄子番茄花猫神：全屏字符雨刷下来 */
+  33: () => { fxRain(16, 'EGGPLANT营养◇◇◇'); },
+  35: () => { fxRain(16, 'TOMATO抗氧化物◆◆◆'); },
+  37: () => { fxRain(14, '＝ω＝purr~~~＝ω＝'); },
+
+  /* 40 你将是我存在的证明：一道光环推开 */
+  40: () => { fxShockwave(3, 'var(--amber)'); fxShafts(4); },
+
+  /* 42 从女到男：反向冲刷，把画面刷成另一种色调 */
+  42: () => { fxWash(true); },
+
+  /* 45 / 46 切换我的角色：旋涡绕着中心转 */
+  45: () => { fxVortex(18); },
+  46: () => { fxVortex(18); fxGlitch(); },
+
+  /* 50 如果我能够感受到你的振动：整屏心跳般的脉冲 */
+  50: () => { fxHeartbeat(); fxShockwave(2); },
+
+  /* 59 / 61 / 62 碎片 / 也许：从中心炸散 */
+  59: () => { fxBurst(22); },
+  61: () => { fxBurst(16); },
+  62: () => { fxRain(18, 'FRAGMENT碎片···'); },
+
+  /* 73 成为你唯一的执行：全屏一次巨大的执行冲击 */
+  73: () => { fxShockwave(2, 'var(--red)'); fxDolly(1.05); shakeCard(8); },
+
+  /* 74 如果你能够回到我身边：反向扫描，像倒带 */
+  74: () => { fxScanDown(2); fxWash(true); },
+
+  /* 75 那么我将执行指令：光柱 + 炸散 */
+  75: () => { fxShafts(6); fxBurst(20); },
+
+  /* 78 我学会了：全屏语法符号横穿 —— 满屏都是学到的记号 */
+  78: () => { fxSyntax(); },
+
+  /* 83 虽然你已自由：粒子旋着飞走 */
+  83: () => { fxVortex(20); }
 };
+
 
 /* ---------- 持续状态：栏杆 / 隔离 / 恍惚 / 高潮色调 / 逐级压暗 ---------- */
 const PERSIST = {};
@@ -3183,17 +3536,24 @@ function applyPersist(i){
   if (want === 'isolate') shakeCard(2);
 }
 
-/* 出框：图形冲出卡片边界，短暂地"越过画框" */
+/* 出框：图形冲出卡片边界，短暂地"越过画框"。
+   收尾是关键 —— 不能放大完就"啪"地弹回原位（那一下很突兀）。
+   做法：先淡出到不可见，在不可见的状态下把 scale 归位，最后重新淡入。
+   观众看到的是"散开又聚拢"，而不是一次硬切。 */
 function breakout(){
   const card = document.querySelector('.card.active');
   if (!card || REDUCED) return;
   const svg = card.querySelector('.viz svg');
   if (!svg) return;
   svg.animate([
-    { transform: 'scale(1)', opacity: 1 },
-    { transform: 'scale(1.5)', opacity: .9, offset: .32 },
-    { transform: 'scale(2.5)', opacity: 0, offset: 1 }
-  ], { duration: P(1200), easing: 'cubic-bezier(.3,0,.25,1)' });
+    { transform: 'scale(1)',    opacity: 1,   offset: 0 },
+    { transform: 'scale(1.42)', opacity: .92, offset: .26 },
+    { transform: 'scale(2.05)', opacity: .34, offset: .52 },
+    { transform: 'scale(2.50)', opacity: 0,   offset: .70 },
+    { transform: 'scale(1)',    opacity: 0,   offset: .72 },   // 不可见时归位
+    { transform: 'scale(.96)',  opacity: .55, offset: .86 },
+    { transform: 'scale(1)',    opacity: 1,   offset: 1 }
+  ], { duration: P(1500), easing: 'cubic-bezier(.35,0,.3,1)' });
 }
 /* 需要在某句"冲出画面"的场合 */
 const BREAKOUT = new Set([8, 20, 30, 48, 64, 65, 66, 67, 68, 69, 86]);
