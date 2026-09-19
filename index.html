@@ -733,34 +733,47 @@ const VIZ = {
       + '<path d="M176 90 h48 m-10 -8 l10 8 l-10 8" fill="none" class="s-amber" stroke-width="1.6"/>';
   },
 
-  /* 整流：交流正弦 → 桥式整流堆 → 脉动的直流。
-     17 句「切换我的电流」停在交流侧，18 句「从交流到直流」推到输出侧。 */
+  /* 整流：画一条信号从左到右依次经过四个阶段 ——
+       正弦 → 整流（负半周翻上来）→ 削波（波峰被切平）→ 直流（纹波收敛成直线）
+     四个阶段的形状是连续插值的，所以看起来是同一条信号在一步步变。
+     17 句「切换我的电流」光标停在交流端，18 句「从交流到直流」推到直流端。 */
   rectify(i){
-    const ac = [];
-    for (let x = 14; x <= 116; x += 2.5) ac.push([x, 94 - 25 * Math.sin((x - 14) / 16.4)]);
-    const dc = [];
-    for (let x = 288; x <= 388; x += 2.5) dc.push([x, 94 - 25 * Math.abs(Math.sin((x - 288) / 16.4))]);
-    // 桥堆：菱形 + 四个二极管三角（指向导通方向）
-    const T = (cx, cy, r) => '<path d="M' + (cx - 7) + ' ' + (cy - 5.5) + ' L' + (cx + 6) + ' ' + cy
-      + ' L' + (cx - 7) + ' ' + (cy + 5.5) + ' Z" class="f-cyan" opacity=".85" transform="rotate(' + r
-      + ' ' + cx + ' ' + cy + ')"/>';
-    const bridge =
-        '<path d="M200 42 L242 90 L200 138 L158 90 Z" fill="none" class="s-cyan" stroke-width="1.5"/>'
-      + T(220, 67, -39) + T(220, 113, 39) + T(180, 67, 39) + T(180, 113, -39)
-      + '<line x1="200" y1="42" x2="200" y2="24" class="s-dim" stroke-width="1.2"/>'
-      + '<line x1="200" y1="138" x2="200" y2="156" class="s-dim" stroke-width="1.2"/>'
-      + '<text x="222" y="26" class="t-dim">DC+</text>'
-      + '<text x="222" y="164" class="t-dim">DC−</text>'
-      + '<circle cx="200" cy="90" r="3" class="f-amber"/>';
-    const on = ((i || 17) % 2) === 1;      // 17 句读交流，18 句读直流
-    return '<line x1="14" y1="94" x2="388" y2="94" class="s-dim" stroke-width=".8" opacity=".4"/>'
-      + '<path d="' + poly(ac) + '" fill="none" class="s-cyan" stroke-width="2.4" opacity="' + (on ? 1 : .35) + '"/>'
-      + '<path d="' + poly(dc) + '" fill="none" class="s-pink" stroke-width="2.4" opacity="' + (on ? .35 : 1) + '"/>'
-      + bridge
-      + '<path d="M122 90 h30 m-9 -7 l9 7 l-9 7" fill="none" class="s-amber" stroke-width="1.5"/>'
-      + '<path d="M248 90 h34 m-9 -7 l9 7 l-9 7" fill="none" class="s-amber" stroke-width="1.5"/>'
-      + '<text x="14" y="34" class="t-dim">AC ~</text>'
-      + '<text x="348" y="34" class="t-dim">DC</text>';
+    const Y0 = 110, A = 48, X0 = 18, X1 = 382, PER = 58;
+    const T1 = 0.28, T2 = 0.53, T3 = 0.74;     // 三个阶段分界
+    const CUT = 0.62;                          // 削波电平（相对振幅）
+    const clip = v => Math.min(v, CUT);
+    const mix = (a, b, k) => a * (1 - k) + b * k;
+    const ease = k => k * k * (3 - 2 * k);
+    const pts = [];
+    for (let x = X0; x <= X1; x += 1.2){
+      const t = (x - X0) / (X1 - X0);
+      const s = Math.sin((x - X0) / PER * Math.PI * 2);
+      const r = Math.abs(s);
+      let v;
+      if (t < T1)      v = s;                                                  // 正弦
+      else if (t < T2) v = mix(s, r, ease((t - T1) / (T2 - T1)));               // 整流
+      else if (t < T3) v = mix(r, clip(r), ease((t - T2) / (T3 - T2)));         // 削波
+      else             v = mix(clip(r), CUT, ease(Math.min(1, (t - T3) / (1 - T3) * 1.5))); // 平滑成直流
+      pts.push([x, Y0 - A * v]);
+    }
+    const X = k => Math.round(X0 + k * (X1 - X0));
+    const YCUT = Y0 - A * CUT;
+    const lineNo = (i || 0) + 1;
+    const atAc = lineNo === 17;
+    const div = k => '<line x1="' + X(k) + '" y1="22" x2="' + X(k) + '" y2="156"'
+      + ' class="s-dim" stroke-width=".9" stroke-dasharray="3 6" opacity=".5"/>';
+    const lab = (k, txt) => '<text x="' + X(k) + '" y="18" class="t-dim" text-anchor="middle">' + txt + '</text>';
+    return '<line x1="' + X0 + '" y1="' + Y0 + '" x2="' + X1 + '" y2="' + Y0 + '" class="s-dim" stroke-width=".9" opacity=".4"/>'
+      + '<line x1="' + X0 + '" y1="' + YCUT + '" x2="' + X1 + '" y2="' + YCUT + '"'
+      + ' class="s-pink" stroke-width="1" stroke-dasharray="4 6" opacity=".6"/>'
+      + '<text x="' + X1 + '" y="' + (YCUT - 7) + '" class="t-dim" text-anchor="end">削波电平</text>'
+      + div(T1) + div(T2) + div(T3)
+      + lab((T1) / 2, '正弦') + lab((T1 + T2) / 2, '整流')
+      + lab((T2 + T3) / 2, '削波') + lab((T3 + 1) / 2, '直流')
+      + '<path d="' + poly(pts) + '" fill="none" class="s-cyan" stroke-width="2.8"/>'
+      + '<circle cx="' + (atAc ? 60 : 344) + '" cy="' + (atAc ? Y0 + 34 : YCUT) + '" r="5" class="f-pink pulse"/>'
+      + '<text x="' + X0 + '" y="176" class="t-dim">AC ~</text>'
+      + '<text x="' + X1 + '" y="176" class="t-dim" text-anchor="end">DC ─</text>';
   },
   void(){
     return VIZ.doodle(3);        // 已停用，保留以防有旧数据引用；不再渲染 null 字样
@@ -2607,15 +2620,17 @@ const PERFORM = {
     poolCleanup(3200);
   },
 
-  /* 17-18 切换电流 / 从交流到直流：一列电流从左往右推进，
-     过桥堆之前上下摆动（交流），过桥堆之后只朝一边鼓（直流） */
+  /* 17-18 切换电流 / 从交流到直流：一列电流点沿着那条信号从左往右走，
+     过中线之前上下摆动（正弦），之后只朝上鼓（整流），
+     而且振幅和图形一样往右逐渐收敛 */
   17: (h) => {
     const F = fx();
     for (let i = 0; i < 15; i++){
       const x = 5 + i * 6.4;
-      const ac = x < 46;                       // 桥堆在画面中央
-      const ph = i * 1.15;
-      const dy = ac ? -Math.sin(ph) * 26 : -Math.abs(Math.sin(ph)) * 26;
+      const ac = x < 41;                                   // 与图形里整流开始的位置对齐
+      const ph = ((x - 5) / 95) * Math.PI * 4.2;
+      const env = ac ? 1 : Math.max(0.22, 1 - (x - 41) / 62);   // 包络：往右收敛
+      const dy = (ac ? -Math.sin(ph) : -Math.abs(Math.sin(ph))) * 34 * env;
       const el = put(i, 'left:' + x + '%;top:50%;width:9px;height:9px;border-radius:50%;' +
         'background:' + (ac ? 'var(--accent)' : 'var(--pink)') +
         ';box-shadow:0 0 14px ' + (ac ? 'var(--accent-dim)' : 'var(--pink)'), '');
