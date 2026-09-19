@@ -171,7 +171,14 @@ h1 .caret{display:inline-block;width:9px;height:1.05em;background:var(--cyan);ve
 .s-violet{stroke:var(--violet)} .s-green{stroke:var(--green)} .s-red{stroke:var(--red)} .s-dim{stroke:#33455f}
 .pulse{animation:pulse 2.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:.22}50%{opacity:1}}
-.spin{animation:spin 7s linear infinite;transform-origin:200px 90px}
+/* SVG 子元素默认的 transform-box 是 view-box —— scale() 的原点落在整块画布
+   的中心 (200,90)，而不是图形自己身上。于是入场动画里每个图形都在"从画布中心
+   飞出来"，扁平的椭圆横着飞就会被看成被挤扁变形（锁链那五个环最明显）。
+   改成以各自包围盒中心为原点，才是真正的"就地弹出"。 */
+.viz svg *{transform-box:fill-box;transform-origin:50% 50%}
+/* 这个要绕画面中心转，得保留旧原点。选择器必须比 `.viz svg *` 更具体，
+   否则会被上面那条盖掉（.spin 单类只有 0,1,0，输给 0,1,1）。 */
+.viz svg .spin{animation:spin 7s linear infinite;transform-box:view-box;transform-origin:200px 90px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .dash{stroke-dasharray:6 7;animation:dash 2.6s linear infinite}
 @keyframes dash{to{stroke-dashoffset:-52}}
@@ -959,25 +966,27 @@ VIZ.gender = () => {
 /* S ⇄ M —— 切换角色（链条 + 双向箭头）。注意别叫 power，
    那会覆盖上面第 01 句的“电源线”图形 */
 VIZ.role = () => {
-  // 链条：每节加一个流向标记，两端各挂一个箭头
+  // 链条：横向环与纵向环交替、互相套住 —— 不是一排一模一样的扁椭圆，
+  // 那样看着像一列眼睛。按位置错开呼吸，看上去是顺着链子往右传。
   let chain = '';
   for (let k = 0; k < 5; k++){
-    const x = 124 + k * 38;
-    chain += '<ellipse cx="' + x + '" cy="122" rx="17" ry="10" fill="none" class="s-violet" stroke-width="2"/>';
-    chain += '<circle cx="' + x + '" cy="122" r="2.6" class="f-violet pulse" opacity="' + (0.35 + k * 0.13).toFixed(2)
-           + '" style="animation-delay:' + (-k * 0.34).toFixed(2) + 's"/>';
+    const x = 136 + k * 32;
+    const wide = k % 2 === 0;
+    chain += '<ellipse cx="' + x + '" cy="120" rx="' + (wide ? 20 : 11) + '" ry="' + (wide ? 11 : 16) + '"'
+           + ' fill="none" class="s-violet pulse" stroke-width="2.4"'
+           + ' style="animation-delay:' + (-k * 0.34).toFixed(2) + 's"/>';
   }
-  // 权力标尺：从 S 端到 M 端，刻度越来越密
-  let ruler = '<line x1="66" y1="156" x2="334" y2="156" class="s-dim" stroke-width="1"/>';
+  // 权力量尺：一条有填充的刻度条，比一根光秃秃的轴更像刻度
+  let meter = '<rect x="66" y="152" width="268" height="9" rx="4.5" class="f-b"/>'
+    + '<rect x="66" y="152" width="268" height="9" rx="4.5" fill="url(#meterGrad)" opacity=".8"/>';
   for (let k = 0; k <= 10; k++){
     const x = 66 + k * 26.8;
-    const h = 4 + Math.abs(k - 5) * 1.5;
-    ruler += '<line x1="' + x.toFixed(1) + '" y1="156" x2="' + x.toFixed(1) + '" y2="' + (156 + h).toFixed(1)
-          + '" class="s-dim" stroke-width="1"/>';
+    meter += '<line x1="' + x.toFixed(1) + '" y1="152" x2="' + x.toFixed(1) + '" y2="161"'
+          + ' stroke="rgba(6,10,18,.85)" stroke-width="1.5"/>';
   }
-  ruler += ''
-        + '';
-  return chain + ruler
+  return '<defs><linearGradient id="meterGrad" x1="0" y1="0" x2="1" y2="0">'
+    + '<stop offset="0" stop-color="#6ee7ff"/><stop offset="1" stop-color="#ff5aa8"/></linearGradient></defs>'
+    + chain + meter
     + '<circle cx="92" cy="64" r="27" fill="none" class="s-cyan" stroke-width="2.4"/>'
     + '<text x="92" y="72" class="t-dim" text-anchor="middle" style="font-size:17px">S</text>'
     + '<circle cx="308" cy="64" r="27" fill="none" class="s-pink" stroke-width="2.4"/>'
@@ -986,8 +995,7 @@ VIZ.role = () => {
     + '<path d="M124 36 h152" class="s-amber dash" stroke-width="1.8" fill="none"/>'
     + '<path d="M266 28 l10 8 l-10 8" fill="none" class="s-amber" stroke-width="1.8"/>'
     + '<path d="M276 50 h-152" class="s-amber dash" stroke-width="1.8" fill="none" style="animation-delay:-1.3s"/>'
-    + '<path d="M134 42 l-10 8 l10 8" fill="none" class="s-amber" stroke-width="1.8"/>'
-    + '';
+    + '<path d="M134 42 l-10 8 l10 8" fill="none" class="s-amber" stroke-width="1.8"/>';
 };
 
 /* if / then —— 条件判定，TRUE 分支按行号左右交替 */
