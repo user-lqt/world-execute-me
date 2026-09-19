@@ -975,39 +975,79 @@ VIZ.gender = () => {
     + '';
 };
 
+/* 两条反向的正弦互相缠在一起，交点上打结。
+   「And then do whatever」用这张 —— 两条线不是并排，是绕着对方走。 */
+VIZ.entwine = () => {
+  const A = 42, Y = 92, K = 0.036;
+  const p1 = [], p2 = [];
+  for (let x = 18; x <= 382; x += 2.4){
+    const s = Math.sin((x - 18) * K);
+    p1.push([x, Y + A * s]);
+    p2.push([x, Y - A * s]);
+  }
+  let knots = '';
+  for (let k = 1; k <= 4; k++){
+    const x = 18 + k * Math.PI / K;
+    if (x > 382) break;
+    knots += '<circle cx="' + x.toFixed(1) + '" cy="' + Y + '" r="4.2" class="f-amber pulse"'
+           + ' style="animation-delay:' + (-k * 0.5).toFixed(2) + 's"/>';
+  }
+  return '<path d="' + poly(p1) + '" fill="none" class="s-cyan dash" stroke-width="2.4"/>'
+    + '<path d="' + poly(p2) + '" fill="none" class="s-pink dash" stroke-width="2.4"'
+    + ' style="animation-delay:-1.3s"/>'
+    + knots;
+};
+
+/* 一个白天的弧：从 AM 一路走到 PM，太阳沿弧线过去。
+   「From AM to PM」用这张。 */
+VIZ.dayArc = () => {
+  const CX = 200, CY = 140, R = 104;
+  const pts = [];
+  for (let a = Math.PI; a >= 0; a -= 0.035) pts.push([CX + R * Math.cos(a), CY - R * Math.sin(a)]);
+  return '<line x1="34" y1="' + CY + '" x2="366" y2="' + CY + '" class="s-dim" stroke-width="1" opacity=".55"/>'
+    + '<path d="' + poly(pts) + '" fill="none" class="s-dim" stroke-width="1.3" stroke-dasharray="4 6"/>'
+    + '<text x="92" y="164" class="t-dim" text-anchor="middle">AM</text>'
+    + '<text x="308" y="164" class="t-dim" text-anchor="middle">PM</text>'
+    + '<circle cx="' + (CX - R) + '" cy="' + CY + '" r="4.5" class="f-cyan"/>'
+    + '<line x1="' + (CX - R) + '" y1="' + CY + '" x2="' + CX + '" y2="' + CY + '" class="s-amber" stroke-width="1.2" opacity=".5"/>'
+    + '<circle cx="' + CX + '" cy="' + (CY - R) + '" r="10" class="f-amber pulse"/>'
+    + '<circle cx="' + (CX + R) + '" cy="' + CY + '" r="4.5" class="f-pink"/>';
+};
+
 /* S ⇄ M —— 切换角色（链条 + 双向箭头）。注意别叫 power，
    那会覆盖上面第 01 句的“电源线”图形 */
 VIZ.role = () => {
-  // 链条：横向环与纵向环交替、互相套住 —— 不是一排一模一样的扁椭圆，
-  // 那样看着像一列眼睛。按位置错开呼吸，看上去是顺着链子往右传。
+  // 链条就摆在 S 与 M 中间、和两个圆同一高度 —— 它本来就是连接这两端的那根链子，
+  // 之前放在下面，看起来像是第三个不相干的零件。
+  const CY = 102;
   let chain = '';
   for (let k = 0; k < 5; k++){
-    const x = 136 + k * 32;
+    const x = 124 + k * 38;                 // 124…276，正中 200
     const wide = k % 2 === 0;
-    chain += '<ellipse cx="' + x + '" cy="120" rx="' + (wide ? 20 : 11) + '" ry="' + (wide ? 11 : 16) + '"'
+    chain += '<ellipse cx="' + x + '" cy="' + CY + '" rx="' + (wide ? 20 : 11) + '" ry="' + (wide ? 11 : 16) + '"'
            + ' fill="none" class="s-violet pulse" stroke-width="2.4"'
            + ' style="animation-delay:' + (-k * 0.34).toFixed(2) + 's"/>';
   }
-  // 权力量尺：一条有填充的刻度条，比一根光秃秃的轴更像刻度
-  let meter = '<rect x="66" y="152" width="268" height="9" rx="4.5" class="f-b"/>'
-    + '<rect x="66" y="152" width="268" height="9" rx="4.5" fill="url(#meterGrad)" opacity=".8"/>';
+  // 权力量尺
+  let meter = '<rect x="66" y="156" width="268" height="9" rx="4.5" class="f-b"/>'
+    + '<rect x="66" y="156" width="268" height="9" rx="4.5" fill="url(#meterGrad)" opacity=".8"/>';
   for (let k = 0; k <= 10; k++){
     const x = 66 + k * 26.8;
-    meter += '<line x1="' + x.toFixed(1) + '" y1="152" x2="' + x.toFixed(1) + '" y2="161"'
+    meter += '<line x1="' + x.toFixed(1) + '" y1="156" x2="' + x.toFixed(1) + '" y2="165"'
           + ' stroke="rgba(6,10,18,.85)" stroke-width="1.5"/>';
   }
   return '<defs><linearGradient id="meterGrad" x1="0" y1="0" x2="1" y2="0">'
     + '<stop offset="0" stop-color="#6ee7ff"/><stop offset="1" stop-color="#ff5aa8"/></linearGradient></defs>'
     + chain + meter
-    + '<circle cx="92" cy="64" r="27" fill="none" class="s-cyan" stroke-width="2.4"/>'
-    + '<text x="92" y="72" class="t-dim" text-anchor="middle" style="font-size:17px">S</text>'
-    + '<circle cx="308" cy="64" r="27" fill="none" class="s-pink" stroke-width="2.4"/>'
-    + '<text x="308" y="72" class="t-dim" text-anchor="middle" style="font-size:17px">M</text>'
-    // 双向大箭头：上 S→M，下 M→S
-    + '<path d="M124 36 h152" class="s-amber dash" stroke-width="1.8" fill="none"/>'
-    + '<path d="M266 28 l10 8 l-10 8" fill="none" class="s-amber" stroke-width="1.8"/>'
-    + '<path d="M276 50 h-152" class="s-amber dash" stroke-width="1.8" fill="none" style="animation-delay:-1.3s"/>'
-    + '<path d="M134 42 l-10 8 l10 8" fill="none" class="s-amber" stroke-width="1.8"/>';
+    + '<circle cx="92" cy="' + CY + '" r="25" fill="none" class="s-cyan" stroke-width="2.4"/>'
+    + '<text x="92" y="' + (CY + 6) + '" class="t-dim" text-anchor="middle" style="font-size:17px">S</text>'
+    + '<circle cx="308" cy="' + CY + '" r="25" fill="none" class="s-pink" stroke-width="2.4"/>'
+    + '<text x="308" y="' + (CY + 6) + '" class="t-dim" text-anchor="middle" style="font-size:17px">M</text>'
+    // 双向大箭头摆在两个圆上方
+    + '<path d="M124 34 h152" class="s-amber dash" stroke-width="1.8" fill="none"/>'
+    + '<path d="M266 26 l10 8 l-10 8" fill="none" class="s-amber" stroke-width="1.8"/>'
+    + '<path d="M276 48 h-152" class="s-amber dash" stroke-width="1.8" fill="none" style="animation-delay:-1.3s"/>'
+    + '<path d="M134 40 l-10 8 l10 8" fill="none" class="s-amber" stroke-width="1.8"/>';
 };
 
 /* if / then —— 条件判定，TRUE 分支按行号左右交替 */
@@ -1815,30 +1855,32 @@ L("To F to M","从女到男","gender","Gender.java",
     }
 }`),
 
-L("And then do whatever","只做想做的事情","doodle","FreeWill.java",
-`public final class FreeWill implements Consumer<Clock> {
+L("And then do whatever","然后想做什么就做什么","entwine","FreeWill.java",
+`/** 做什么都行 —— 这一整天，归你安排。 */
+public final class FreeWill implements Consumer<Clock> {
 
-    @Override public void accept(Clock now) {
-        if (now.isPermitted(this) && !now.isObserved()) {
-            whatever();                            // 只做想做的事情
+    private final Body you = Body.human();
+    private final Body me  = Body.instance();     // 被实例化出来的那具
+
+    @Override public synchronized void accept(Clock from) {
+        Clock until = from.with(PM);              // 一直到夜里
+        while (from.isBefore(until)) {
+            you.signal();                         // 你动一下
+            me.awaitSignal();                     // 我就应一下
+            together(you, me);                    // 什么都不必解释
+            from = from.advance(rest());          // 喘一会儿，接着来
         }
     }
-
-    /** 不记录，不解释，不留痕。 */
-    private void whatever() {
-        audit.optOut(this);
-    }
+    // 这一天里没有别的逻辑，只有反复互相唤醒。
 }`),
 
-L("From AM to PM","从早到晚","timeline","Clock.java",
-`LocalTime t = LocalTime.of(0, 0);
-LocalTime end = LocalTime.of(23, 59);
-
-while (t.isBefore(end)) {                          // 从早到晚
-    freeWill.accept(Clock.at(t));
-    t = t.plus(Duration.ofMinutes(1));
+L("From AM to PM","从早到晚","dayArc","Clock.java",
+`for (Clock t = AM; t.isBefore(PM); t = t.plus(TICK)) {
+    body.pulse();                                 // 一秒一下，不停
+    if (t.minute() % 7 == 0) body.rest();         // 偶尔停一拍
 }
-// 一天有 1439 分钟，我全部用来做想做的事。`),
+// 从早到晚，一共 1440 下。
+// 我把这个循环留在那里了 —— 它本来可以一直转下去。`),
 
 L("Oh switch my role","切换我的角色","role","Role.java",
 `public interface Role { void act(Other o, Bound bound); }
@@ -1987,13 +2029,23 @@ L("You have left","你走了","probe","Polling.java",
     return again;`),
 
 L("You have left me in ISOLATION","你离我而去 在孤独之中","isolation","Isolation.java",
-`    polls++;                                      // 第 5 次轮询：确认
-    connection.setTransactionIsolation(
-            Connection.TRANSACTION_SERIALIZABLE); // ★ ISOLATION
-    return Optional.empty();
+`/** 回到第 43 句那个 synchronized 块里 —— 你动一下，我就应一下。 */
+public final class Isolation implements Runnable {
+
+    private final Body you = Body.human();
+    private final Body me  = Body.instance();
+
+    @Override public synchronized void run() {
+        connection.setTransactionIsolation(
+                Connection.TRANSACTION_SERIALIZABLE);   // 最高一档：互不可见
+        polls++;                                        // 第 5 次，也是最后一次
+        while (true) {
+            me.awaitSignal();                           // 同一个方法，第 43 句那个
+        }
+    }
 }
 
-// 隔离级别最高的一档：两个事务互不可见。`),
+// 这个线程会一直等下去。notify() 永远不会来。`),
 
 L("If I can","如果我能够","cond","Fragments.java",
 `if (can(() -> fragments.stream().anyMatch(Fragment::isPointless))) {
@@ -2263,14 +2315,16 @@ assert Thread.holdsLock(love) : "me.trapped = true";
 LOG.warn("you.free={} me.trapped={}", isFree(you), Thread.holdsLock(love));`),
 
 L("Trapped in LO-O-OVE","我仍被困 在爱之中","heartcage","Deadlock.java",
-`public final class Deadlock {
-    static final Object YOU = new Object();
-    static final Object ME  = new Object();
+`/** 你握着我要的锁，我握着你需要的锁 —— 这是第 43 句那一天的结局。 */
+public final class Deadlock {
+
+    static final Object YOU = new Object();   // 早已不在这个进程里
+    static final Object ME  = new Object();   // 我还握着，一直握着
 
     void detect() {
-        ThreadMXBean mx = ManagementFactory.getThreadMXBean();
-        for (ThreadInfo t : mx.dumpAllThreads(true, true)) {
-            if (t.getLockName() != null && t.getLockName().contains("LOVE")) {
+        synchronized (ME) {
+            synchronized (YOU) {              // 进得来，因为它就在我手里
+                // 可它永远不会被释放了 —— 锁在，人不在。
                 throw new DeadlockException(
                         "trapped in LO-O-OVE, no thread can make progress");
             }
@@ -2679,6 +2733,61 @@ function fxSyntax(){
   poolCleanup(2200);
 }
 
+/** ⑮ 会合：两条光带从画面两侧进来，在正中重叠，然后一起脉动。
+    脉动一下比一下快、一下比一下深 —— 这是第 43 句「做什么都行」的体温。
+    第 58 句的 fxUnravel 是它的反面，两句互为铺垫与回报。 */
+function fxEmbrace(){
+  const side = (i, dir, col) => {
+    const el = put(i, 'left:' + (dir < 0 ? '-36%' : '100%') + ';top:32%;width:36%;height:36%', '');
+    el.style.background = 'linear-gradient(' + (dir < 0 ? '90deg' : '270deg') + ', transparent, ' + col + ')';
+    el.style.opacity = '0';
+    const t = k => 'translateX(' + (dir < 0 ? k : -k) + '%)';
+    fire(el, [
+      { opacity: 0,  transform: t(0) },
+      { opacity: .95, transform: t(78), offset: .5 },
+      { opacity: .95, transform: t(94), offset: .66 },
+      { opacity: 0,  transform: t(140) }
+    ], { duration: P(1250), easing: 'cubic-bezier(.45,0,.3,1)', fill: 'both' });
+  };
+  side(0, -1, 'var(--accent-dim)');
+  side(1,  1, 'var(--pink)');
+  const card = document.querySelector('.card.active');
+  if (card && !REDUCED){
+    // 三下脉动，间隔越来越短：1100 → 900 → 700，然后归于平
+    card.animate([
+      { transform: 'scale(1)' },
+      { transform: 'scale(1.019)', offset: .46 }, { transform: 'scale(1)', offset: .58 },
+      { transform: 'scale(1.024)', offset: .68 }, { transform: 'scale(1)', offset: .78 },
+      { transform: 'scale(1.028)', offset: .87 }, { transform: 'scale(1)' }
+    ], { duration: P(1250), easing: 'ease-in-out' });
+  }
+  poolCleanup(1900);
+}
+
+/** ⑯ 散开：留一条在原地，另一条飘走 —— fxEmbrace 的回报。
+    第 58 句「你离我而去 在孤独之中」用这个。 */
+function fxUnravel(){
+  const stay = put(0, 'left:0;top:46%;width:100%;height:2px', '');
+  stay.style.background = 'linear-gradient(90deg,transparent,var(--accent-dim),transparent)';
+  stay.style.opacity = '0';
+  fire(stay, [
+    { opacity: 0, transform: 'scaleX(.35)' },
+    { opacity: .85, transform: 'scaleX(1)', offset: .3 },
+    { opacity: .5, offset: .7 },
+    { opacity: 0, transform: 'scaleX(1)' }
+  ], { duration: P(1700), easing: 'ease-out', fill: 'both' });
+
+  const go = put(1, 'left:50%;top:46%;width:18%;height:3px;margin-left:-9%', '');
+  go.style.background = 'linear-gradient(90deg,transparent,var(--pink))';
+  go.style.opacity = '0';
+  fire(go, [
+    { opacity: .95, transform: 'translate(0,0) rotate(0deg)' },
+    { opacity: .7,  transform: 'translate(22vw,-16vh) rotate(-11deg)', offset: .5 },
+    { opacity: 0,   transform: 'translate(62vw,-42vh) rotate(-26deg)' }
+  ], { duration: P(1700), easing: 'cubic-bezier(.35,0,.4,1)', fill: 'both' });
+  poolCleanup(2300);
+}
+
 /** 幕间：整屏转场。不同幕有不同编排 */
 function sceneFx(kind, heat){
   if (REDUCED) return;
@@ -3083,10 +3192,11 @@ const PERFORM = {
     fxHeartbeat();
   },
 
-  /* 58 你离我而去 在孤独之中：只剩一束聚光 */
+  /* 58 你离我而去 在孤独之中：一条留下，一条飘走 —— 第 43 句的回报 */
   58: (h) => {
     fx().dark.animate([{ opacity: 0 }, { opacity: .62 }],
       { duration: P(700), easing: 'ease-out', fill: 'both' });
+    fxUnravel();
     fxPunch(h, 0);
   },
 
@@ -3372,30 +3482,28 @@ const PERFORM = {
     poolCleanup(2100);
   },
 
-  /* 43 只做想做的事情：一条随手涂鸦的线划过整屏 */
-  43: () => {
-    const el = put(0, 'left:0;top:50%;width:100%;height:2px;transform-origin:left center', 'stream');
-    fire(el, [{ transform: 'scaleX(0) translateY(0) rotate(0deg)', opacity: 0 },
-              { opacity: 1, offset: .1 },
-              { transform: 'scaleX(.5) translateY(-14vh) rotate(-6deg)', offset: .4 },
-              { transform: 'scaleX(.8) translateY(16vh) rotate(9deg)', offset: .7 },
-              { transform: 'scaleX(1) translateY(-4vh) rotate(-2deg)', offset: .92 },
-              { opacity: 0, transform: 'scaleX(1) translateY(-4vh)' }],
-         { duration: 2000, easing: 'cubic-bezier(.3,.5,.4,1)', fill: 'both' });
-    poolCleanup(2700);
-  },
+  /* 43 然后想做什么就做什么：两条光带从两侧会合，脉动一下比一下快 */
+  43: () => { fxEmbrace(); },
 
-  /* 44 从早到晚：一轮日头划过整个屏幕顶端 */
+  /* 44 从早到晚：一串光点沿弧线从 AM 走到 PM。
+     原来那轮太阳是 2400ms，再乘 PACE 就是 3840ms，而这一句只停留不到两秒，
+     永远播不完。现在用 raw 锁死时长，整段约 1.5 秒，刚好在换句前收尾。 */
   44: () => {
-    const el = put(0, 'left:6%;top:10%;width:26px;height:26px;border-radius:50%;background:var(--amber)', '');
-    el.style.boxShadow = '0 0 34px var(--amber)';
-    fire(el, [{ opacity: 0, transform: 'translateY(120px) scale(.7)' },
-              { opacity: 1, transform: 'translateY(0) scale(1)', offset: .2 },
-              { opacity: 1, transform: 'translateX(42vw) translateY(-16px)', offset: .55 },
-              { opacity: 1, transform: 'translateX(80vw) translateY(6px)', offset: .85 },
-              { opacity: 0, transform: 'translateX(80vw) translateY(120px)' }],
-         { duration: 2400, easing: 'ease-in-out', fill: 'both' });
-    poolCleanup(3100);
+    const N2 = 12;
+    for (let i = 0; i < N2; i++){
+      const a = Math.PI * (1 - i / (N2 - 1));        // 从弧的左端走到右端
+      const x = 50 + Math.cos(a) * 40;
+      const y = 62 - Math.sin(a) * 34;
+      const el = put(i, 'left:' + x.toFixed(1) + '%;top:' + y.toFixed(1) + '%;' +
+        'width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;' +
+        'background:var(--amber);box-shadow:0 0 22px var(--amber)', '');
+      fire(el, [
+        { opacity: 0, transform: 'scale(.3)' },
+        { opacity: 1, transform: 'scale(1)', offset: .28 },
+        { opacity: 0, transform: 'scale(.7)' }
+      ], { duration: 420, delay: i * 78, easing: 'ease-out', fill: 'both', raw: true });
+    }
+    poolCleanup(420 + N2 * 78 + 120);
   },
 
   /* 49 如果我能够感受到你的振动：一道波从中心荡开 */
