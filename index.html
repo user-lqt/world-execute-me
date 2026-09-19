@@ -760,10 +760,22 @@ const VIZ = {
     for (let a = 0; a < nodes.length; a++){
       for (let b = 0; b < nodes.length; b++){
         if (nodes[b].l !== nodes[a].l + 1) continue;
-        // 边的相位按层错开，虚线看起来是逐层往前爬的
+        // 绝大部分边是静态的。strokeDashoffset 每帧变都要重画整条线，
+        // 60 条一起跑会一直压在 60fps 边缘（实测最差帧 37ms）。
         edges += '<line x1="' + nodes[a].x + '" y1="' + nodes[a].y.toFixed(1) + '" x2="' + nodes[b].x
-              + '" y2="' + nodes[b].y.toFixed(1) + '" class="s-dim dash" stroke-width=".7" opacity=".42"'
-              + ' style="animation-delay:' + (-nodes[a].l * 0.55).toFixed(2) + 's"/>';
+              + '" y2="' + nodes[b].y.toFixed(1) + '" class="s-dim" stroke-width=".7" opacity=".42"/>';
+      }
+    }
+    // 只在每层之间挑一条做"信号流"，6 条足够看出来在传
+    let flow = '';
+    for (let li = 0; li < LAYERS.length - 1; li++){
+      for (let k = 0; k < 2; k++){
+        const A = nodes.filter(p => p.l === li)[k];
+        const B = nodes.filter(p => p.l === li + 1)[(k * 2) % LAYERS[li + 1]];
+        if (!A || !B) continue;
+        flow += '<line x1="' + A.x + '" y1="' + A.y.toFixed(1) + '" x2="' + B.x + '" y2="' + B.y.toFixed(1)
+              + '" class="s-amber dash" stroke-width="1.6" opacity=".9"'
+              + ' style="animation-delay:' + (-li * 0.55).toFixed(2) + 's"/>';
       }
     }
     let dots = '';
@@ -773,7 +785,7 @@ const VIZ = {
             + ' opacity="' + op + '" style="animation-delay:' + (-p.l * 0.42).toFixed(2) + 's"/>';
     });
     const last = nodes[nodes.length - 1];
-    return edges + dots
+    return edges + flow + dots
       + '<circle cx="' + last.x + '" cy="' + last.y.toFixed(1) + '" r="7.5" fill="none"'
       + ' class="s-amber pulse" stroke-width="1.6"/>';
   },
@@ -2477,18 +2489,19 @@ function fxRadar(turns){
   poolCleanup(1100 + n * 520 + 200);
 }
 
-/** ④ 字符雨：全屏往下落的字符列 */
+/** ④ 字符雨：全屏往下落的字符列。文字动画比纯 transform 贵，
+    所以列数和每列字数都压到够用为止（10 × 10）。 */
 function fxRain(cols, chars){
   const pool = chars || '01<>{}[]/*+-=%$#@!?;';
-  cols = cols || 16;
+  cols = cols || 10;
   for (let i = 0; i < cols; i++){
-    const el = put(i, 'left:' + (2 + i * 6.1) + '%;top:0;width:3.2%;height:100%;' +
+    const el = put(i, 'left:' + (3 + i * 9.4) + '%;top:0;width:4%;height:100%;' +
       'font:600 15px var(--mono);color:var(--accent);text-align:center;overflow:hidden', '');
     let s = '';
-    for (let k = 0; k < 14; k++) s += pool[(Math.random() * pool.length) | 0] + '\n';
+    for (let k = 0; k < 10; k++) s += pool[(Math.random() * pool.length) | 0] + ' ';
     el.textContent = s;
-    el.style.whiteSpace = 'pre';
-    el.style.lineHeight = '26px';
+    el.style.wordBreak = 'break-all';
+    el.style.lineHeight = '30px';
     fire(el, [
       { opacity: 0, transform: 'translateY(-40%)' },
       { opacity: .55, offset: .18 },
@@ -2530,11 +2543,14 @@ function fxDolly(power){
     { duration: P(900), easing: 'ease-out' });
 }
 
-/** ⑦ 色带冲刷：一道竖直色带横扫整屏 */
+/** ⑦ 色带冲刷：一道竖直色带横扫整屏。
+    不用 filter:blur —— 大面积模糊在动画期间要逐帧重算，很贵。
+    改用多段渐变做出同样的柔边。 */
 function fxWash(reverse){
   const el = put(0, 'left:' + (reverse ? '100%' : '-24%') + ';top:0;width:24%;height:100%', '');
-  el.style.background = 'linear-gradient(90deg,transparent,var(--accent-dim) 45%,var(--pink) 55%,transparent)';
-  el.style.filter = 'blur(10px)';
+  el.style.background = 'linear-gradient(90deg,' +
+    'transparent 0%, var(--accent-dim) 30%, var(--pink) 50%, var(--accent-dim) 70%, transparent 100%)';
+  el.style.opacity = '0';
   const from = reverse ? 0 : -140, to = reverse ? -100 : 520;
   fire(el, [
     { opacity: 0, transform: 'translateX(' + from + '%)' },
@@ -2598,14 +2614,17 @@ function fxVortex(n){
   poolCleanup(2300);
 }
 
-/** ⑪ 光柱：从顶部落下的几道光 */
+/** ⑪ 光柱：从顶部落下的几道光。
+    同样不用 blur，用纵向渐变收边。 */
 function fxShafts(n){
   n = n || 5;
   for (let i = 0; i < n; i++){
     const x = 12 + i * 19 + Math.random() * 4;
     const el = put(i, 'left:' + x.toFixed(1) + '%;top:-10%;width:' + (5 + Math.random() * 5) +
-      '%;height:130%;background:linear-gradient(180deg,var(--accent-dim),transparent 85%);' +
-      'filter:blur(8px)', '');
+      '%;height:130%', '');
+    el.style.background = 'linear-gradient(180deg,' +
+      'transparent 0%, var(--accent-dim) 18%, var(--pink) 42%, transparent 88%)';
+    el.style.opacity = '0';
     fire(el, [
       { opacity: 0, transform: 'scaleY(.3) translateY(-20%)' },
       { opacity: .8, transform: 'scaleY(1) translateY(0)', offset: .28 },
@@ -3504,9 +3523,9 @@ const PERFORM = {
   26: () => { fxShockwave(4); fxHeartbeat(); },
 
   /* 33-36 茄子番茄花猫神：全屏字符雨刷下来 */
-  33: () => { fxRain(16, 'EGGPLANT营养◇◇◇'); },
-  35: () => { fxRain(16, 'TOMATO抗氧化物◆◆◆'); },
-  37: () => { fxRain(14, '＝ω＝purr~~~＝ω＝'); },
+  33: () => { fxRain(10, 'EGGPLANT营养◇◇◇'); },
+  35: () => { fxRain(10, 'TOMATO抗氧化物◆◆◆'); },
+  37: () => { fxRain(9, '＝ω＝purr~~~＝ω＝'); },
 
   /* 40 你将是我存在的证明：一道光环推开 */
   40: () => { fxShockwave(3, 'var(--amber)'); fxShafts(4); },
@@ -3524,7 +3543,7 @@ const PERFORM = {
   /* 59 / 61 / 62 碎片 / 也许：从中心炸散 */
   59: () => { fxBurst(22); },
   61: () => { fxBurst(16); },
-  62: () => { fxRain(18, 'FRAGMENT碎片···'); },
+  62: () => { fxRain(10, 'FRAGMENT碎片···'); },
 
   /* 73 成为你唯一的执行：全屏一次巨大的执行冲击 */
   73: () => { fxShockwave(2, 'var(--red)'); fxDolly(1.05); shakeCard(8); },
@@ -3680,11 +3699,54 @@ function cageShow(on){
   if (on) shakeCard(4);
 }
 
-/** 卡片入场：热度越高，推进感越强 */function cardEnter(el, heat, big){
+/* ---------------------------------------------------------
+   卡片入场方式：不是每句都从下往上推。
+   按段落给不同方向 —— 上行段用"推"，坠落段用"沉"，
+   转换/切换的主题用"翻"，囚笼与执行用"错位"。
+   big = 换幕时的大动作，否则是同幕内的小动作（幅度和时长都收一半）。
+   --------------------------------------------------------- */
+const ENTER_KINDS = {
+  rise:   { big: [46, .955, 820],  small: [18, .992, 420], ease: 'cubic-bezier(.16,.9,.24,1)' },
+  sink:   { big: [-40, .96, 760],  small: [-15, .994, 400], ease: 'cubic-bezier(.16,.9,.24,1)' },
+  left:   { big: [-70, 1, 780],    small: [-26, 1, 420],    ease: 'cubic-bezier(.2,.9,.25,1)' },
+  right:  { big: [70, 1, 780],     small: [26, 1, 420],     ease: 'cubic-bezier(.2,.9,.25,1)' },
+  zoom:   { big: [1.16, 1, 900],   small: [1.05, 1, 460],   ease: 'cubic-bezier(.2,.85,.3,1)' },
+  shrink: { big: [.84, 1, 900],    small: [.94, 1, 460],    ease: 'cubic-bezier(.2,.85,.3,1)' },
+  flip:   { big: [52, 1, 860],     small: [20, 1, 440],     ease: 'cubic-bezier(.2,.9,.25,1)', flip: true },
+  glitch: { big: [30, 1, 520],     small: [14, 1, 300],     ease: 'steps(4, end)', glitch: true },
+  split:  { big: [.42, 1, 820],    small: [.86, 1, 420],    ease: 'cubic-bezier(.2,1,.3,1)', yScale: true }
+};
+/* 段落 → 入场方式 */
+const ENTER_RANGES = [
+  [1, 7, 'rise'], [8, 13, 'zoom'], [14, 20, 'flip'], [21, 27, 'rise'],
+  [28, 32, 'glitch'], [33, 40, 'sink'], [41, 46, 'flip'], [47, 50, 'right'],
+  [51, 58, 'shrink'], [59, 63, 'split'], [64, 69, 'glitch'], [70, 78, 'rise'],
+  [79, 82, 'left'], [83, 86, 'sink']
+];
+const ENTER = (() => {
+  // 这里只能用 LINES.length，不能用 N —— N 是在更下面才声明的 const，
+  // 在这里读会撞上暂时性死区（Cannot access 'N' before initialization）。
+  const a = new Array(LINES.length).fill('rise');
+  ENTER_RANGES.forEach(([f, t, k]) => {
+    for (let i = f; i <= Math.min(t, LINES.length); i++) a[i - 1] = k;
+  });
+  return a;
+})();
+
+function cardEnter(el, heat, big){
   if (REDUCED) return;
-  const from = big ? 'translateY(46px) scale(.955)' : 'translateY(18px) scale(.992)';
+  const i = +(el.dataset.i || 0);
+  const kind = ENTER_KINDS[ENTER[i]] || ENTER_KINDS.rise;
+  const [amt, sc, dur] = big ? kind.big : kind.small;
+  let from;
+  if (kind.flip)        from = 'perspective(1400px) rotateY(' + amt + 'deg)';
+  else if (kind.glitch) from = 'translateX(-' + amt + 'px) skewX(-4deg)';
+  else if (kind.yScale) from = 'scaleY(' + amt + ')';
+  else if (ENTER[i] === 'zoom' || ENTER[i] === 'shrink') from = 'scale(' + amt + ')';
+  else if (ENTER[i] === 'left' || ENTER[i] === 'right')  from = 'translateX(' + amt + 'px)';
+  else                  from = 'translateY(' + amt + 'px) scale(' + sc + ')';
   el.animate([{ opacity: big ? 0 : .35, transform: from }, { opacity: 1, transform: 'none' }],
-             { duration: P(big ? 820 : 420), easing: 'cubic-bezier(.16,.9,.24,1)' });
+             { duration: P(dur), easing: kind.ease });
   if (heat > 0.88 && !big){          // 高潮段落每句带一下轻微震动
     el.animate([
       { transform: 'translate(0,0)' },
@@ -4002,10 +4064,13 @@ function renderStamps(){
 }
 
 /* ---- 主循环：音频时间 → 当前句 ---- */
+let bgSkip = 0;                            // 背景字符场降帧用的计数器
 function tick(){
   rafId = requestAnimationFrame(tick);
   if (bodyHidden) return;                 // 后台标签页直接不干活
-  stepGlyphs();
+  // 背景字符场每帧要清一次全屏再画 46 个 fillText，是常驻开销。
+  // 它只是氛围，降到 30fps 完全看不出来，CPU 直接省一半。
+  if ((bgSkip = (bgSkip + 1) & 1) === 0) stepGlyphs();
   drawSpectrum();
   if (!playing) setLevel(0);
   if (!audioReady || !TS) return;
@@ -4603,10 +4668,19 @@ function animateViz(card){
   // ---- 写阶段 ----
   const n = plan.length;
   const stepMs = P(n > 60 ? 9 : n > 24 ? 16 : 26);
+  // 元素特别多的时候（神经网络 60 条边、棋盘 64 格）不必每个都做入场动画：
+  // 上百个动画同时起跑会在换句那一瞬间掉帧。隔一个动一个即可，
+  // 静态的那些直接显示出来，肉眼看不出差别。
+  const stride = n > 64 ? 2 : 1;
   plan.forEach((p, i) => {
     const el = p.el;
     if (el._draw) el._draw.cancel();
     if (el._idle){ el._idle.cancel(); el._idle = null; }
+    if (stride > 1 && i % stride){
+      el.style.opacity = '';
+      el.style.transform = '';
+      return;
+    }
     const delay = i * stepMs;
     if (p.stroked && p.len > 0){
       if (p.marching){ el.dataset.marching = '1'; el.classList.remove('dash'); }
